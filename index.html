@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:,">
+<title>Chromap</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- LEFT -->
+    <div id="controls">
+        <h1>Unrequited Colors</h1>
+
+        <!-- File buttons -->
+        <div class="row">
+            <button id="openImage">Open Image</button>
+            <button id="saveImage">Save Image</button>
+            <button id="resetView">Reset View</button>
+            <button id="toggleView">Show Original</button>
+        </div>
+
+        <hr>
+
+        <!-- Sliders -->
+        <div class="slider-group">
+            <label>Temperature</label>
+            <input id="sliderTemp" type="range" min="0" max="1" step="0.01" value="0.5">
+        </div>
+
+        <hr>
+
+        <!-- Palette -->
+        <button id="openPalette">Load Custom Palette from File</button>
+        <select id="presetSelect">
+            <option value="">Select a Palette</option>
+        </select>
+        <div id="palette"></div>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div id="preview">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <input id="paletteFile" type="file" accept=".txt" hidden>
+    <input id="imageInput" type="file" accept="image/*" style="display:none;">
+    <script type="module" src="main.js"></script> 
+
+</body>
+</html>
