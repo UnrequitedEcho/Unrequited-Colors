@@ -1,12 +1,8 @@
-# Unrequited Colors
+# [Unrequited Colors](https://unrequitedecho.github.io/Unrequited-Colors/)
 
 *Because not all colors' love are reciprocated.*
 
-Unrequited Colors is a tool for applying a constraining an image to a strict color palette.
-
-The goal is to be as *correct* as quantization, while preserving gradients and feeling more natural and stylish.
-
-Built for speed and interactivity, it aims makes palette and parameter tweaking effortless. The most obvious use case is adapting wallpapers to match an application or system theme.
+Unrequited Colors is a tool for applying a constraining an image to a strict color palette. The goal is to be as *correct* as quantization, while preserving gradients and feeling more natural and stylish. Built with speed and interactivity in mind, it aims makes palette and parameter tweaking effortless. The most obvious use case is adapting wallpapers to match an application or system theme.
 
 Below are some exemples, original on the left, UC on the right.
 
@@ -21,7 +17,7 @@ Below are some exemples, original on the left, UC on the right.
 
 ## TL;DR
 
-Go [here]() -> pick a palette -> load an image -> tweak the **Temperature** slider.
+Go [here](https://unrequitedecho.github.io/Unrequited-Colors/) -> pick a palette -> load an image -> tweak the **Temperature** slider.
 
 Stop when it looks amazing. Should not take long.
 
