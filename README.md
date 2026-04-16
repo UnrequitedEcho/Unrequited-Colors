@@ -1,18 +1,23 @@
 # Unrequited Colors
 
-*Not all colors are reciprocated.*
+*Because not all colors' love are reciprocated.*
 
 Unrequited Colors is a tool for applying a constraining an image to a strict color palette.
 
-The goal is to be as *correct* as quantization, while preserving structure and gradients and overall feeling more natural and stylish.
+The goal is to be as *correct* as quantization, while preserving gradients and feeling more natural and stylish.
 
 Built for speed and interactivity, it aims makes palette and parameter tweaking effortless. The most obvious use case is adapting wallpapers to match an application or system theme.
 
-![Heavy Draculized Forest](sidebyside3)
-![Tastefully Nordified Ashe](sidebyside2)
-![Slightly Tokyo-ised Fuji](sidebyside1)
+Below are some exemples, original on the left, UC on the right.
 
-## tl,dr
+*Heavily Draculized Forest*
+![Heavy Draculized Forest](assets/readme/sidebyside3.jpg)
+
+*Tastefully Nordified Ashe*
+![Tastefully Nordified Ashe](assets/readme/sidebyside2.jpg)
+
+*Slightly Tokyo-ised Fuji*
+![Slightly Tokyo-ised Fuji](assets/readme/sidebyside1.jpg)
 
 ## TL;DR
 
@@ -22,7 +27,7 @@ Stop when it looks amazing. Should not take long.
 
 ## How Tos
 
-### Choose the temperature
+### *->Choose the temperature*
 
 Each pixel is expressed as a weighted mix of the palette colors.  
 The weights depend on how close the pixel is to each palette color (in a perceptual color space).
@@ -34,7 +39,7 @@ The **Temperature** controls how sharp or smooth that mix is:
 
 The default range is tuned so that the sweet spot is usually near the middle, but don’t be afraid to push it.
 
-### Choose a good palette
+### *->Choose a good palette*
 
 This matters less than you might think. You can throw in your favorite 16 colors terminal theme, and it will usually work just fine. There’s a hard cap at 32 colors, and fewer than 2 doesn’t make much sense.
 
@@ -48,7 +53,7 @@ To go deeper, think of colors as points in a 3D space. Your palette defines a re
 
 In practice: just try things and see what looks good.
 
-### Load a custom palette
+### *->Load a custom palette*
 
 You can load a palette from a text file.
 
@@ -56,15 +61,10 @@ The parser expects a color per line, but is very flexible. For example, all of t
 
 ```
 #282a36
-#44475a
-#f8f8f2
-
 282a36 
 44475aff 
 ["f8f8f2"]
-
 Some random text #282a36 
-more text 44475a 
 ```
 
 Duplicates are removed automatically, and only the first 32 colors are kept.
@@ -114,11 +114,11 @@ All results use the same source images and as close to the [Dracula](https://en.
 
 | Image | Original | ImageGoNord | PaletteNet | Quantization | Unrequited Colors |
 |------|----------|-------------|-------------|--------------|-------------------|
-| 1 | ![](1.jpg) | ![](1_ign.jpg) | ![](1_pn.jpg) | ![](1_q.jpg) | ![](1_uc.jpg) |
-| 2 | ![](2.jpg) | ![](2_ign.jpg) | ![](2_pn.jpg) | ![](2_q.jpg) | ![](2_uc.jpg) |
-| 3 | ![](3.jpg) | ![](3_ign.jpg) | ![](3_pn.jpg) | ![](3_q.jpg) | ![](3_uc.jpg) |
-| 4 | ![](4.jpg) | ![](4_ign.jpg) | ![](4_pn.jpg) | ![](4_q.jpg) | ![](4_uc.jpg) |
-| 5 | ![](5.jpg) | ![](5_ign.jpg) | ![](5_pn.jpg) | ![](5_q.jpg) | ![](5_uc.jpg) |
+| 1 | ![](assets/readme/1.jpg) | ![](assets/readme/1_ign.jpg) | ![](assets/readme/1_pn.jpg) | ![](assets/readme/1_q.jpg) | ![](assets/readme/1_uc.jpg) |
+| 2 | ![](assets/readme/2.jpg) | ![](assets/readme/2_ign.jpg) | ![](assets/readme/2_pn.jpg) | ![](assets/readme/2_q.jpg) | ![](assets/readme/2_uc.jpg) |
+| 3 | ![](assets/readme/3.jpg) | ![](assets/readme/3_ign.jpg) | ![](assets/readme/3_pn.jpg) | ![](assets/readme/3_q.jpg) | ![](assets/readme/3_uc.jpg) |
+| 4 | ![](assets/readme/4.jpg) | ![](assets/readme/4_ign.jpg) | ![](assets/readme/4_pn.jpg) | ![](assets/readme/4_q.jpg) | ![](assets/readme/4_uc.jpg) |
+| 5 | ![](assets/readme/5.jpg) | ![](assets/readme/5_ign.jpg) | ![](assets/readme/5_pn.jpg) | ![](assets/readme/5_q.jpg) | ![](assets/readme/5_uc.jpg) |
 
 ### Methodology
 
@@ -135,15 +135,7 @@ All results use the same source images and as close to the [Dracula](https://en.
   - No blur
 
 - **PaletteNet**
-  - Limited to 6 colors:
-    ```
-    #282a36
-    #f8f8f2
-    #8be9fd
-    #bd93f9
-    #ff79c6
-    #f1fa8c
-    ```
+  - Limited to 6 colors: `#282a36 #f8f8f2 #8be9fd #bd93f9 #ff79c6 #f1fa8c`
 
 - **Quantization (ImageMagick)**
   - Custom Dracula palette:
@@ -155,7 +147,7 @@ All results use the same source images and as close to the [Dracula](https://en.
 
 - **Unrequited Colors**
   - Dracula palette (from Wikipedia)
-  - Temperature manually adjusted (≤ 5 seconds per image)
+  - Temperature manually adjusted (<= 5 seconds per image)
   - Output converted from PNG:
     ```bash
     magick 1_uc.png 1_uc.jpg
@@ -164,7 +156,7 @@ All results use the same source images and as close to the [Dracula](https://en.
 
 ## FAQ
 
-### I get banding in gradients.
+### *-> I get banding in gradients.*
 
 First, check if the original image already has banding (seriously).
 
@@ -177,7 +169,7 @@ At the end of the day, you're limiting the color space, so some banding is unavo
 
 Another approach is to lower the temperature and make the banding a stylistic choice (try it, I dare you!).
 
-### I don't want a website, I want to run it locally.
+### *-> I don't want a website, I want to run it locally.*
 
 You are in luck! After the source code download, everything already runs on your machine. All computations are done client-side (WebGL + JavaScript). Your images are never uploaded anywhere. Try it! open the website and disconnect. It still works!
 
@@ -191,7 +183,7 @@ Then open a web browser and go to [http://localhost:8000](http://localhost:8000)
 
 If enough people pester me for it, I might add a small CLI version of the core algorithm.
 
-#### My favorite theme is not avaiable as a Preset.
+### *-> My favorite theme is not avaiable as a Preset.*
 
 You can manually add each color of your theme. You can also [load a custom theme from a file](#load-a-custom-palette)). If you think your theme might be helpful to the community and wish to contribute it, thank you! Palettes are stored in [`palettes.json`](./palettes.json). Each entry looks like this:
 
