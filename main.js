@@ -155,33 +155,49 @@ window.addEventListener("mousemove", e => {
 });
 
 // -----------------------------------------------------------------
-// Toggle Original
+// Controls
 // -----------------------------------------------------------------
+
+function setupControl(el, onChange) {
+    const slider = el.querySelector(".slider");
+    const toggle = el.querySelector(".toggle");
+
+    let state = {
+        value: parseFloat(slider.value),
+        enabled: !toggle.checked
+    };
+
+    slider.oninput = () => {
+        state.value = parseFloat(slider.value);
+        onChange(state);
+    };
+
+    toggle.onchange = () => {
+        state.enabled = !toggle.checked;
+        slider.classList.toggle("disabled", state.enabled);
+        onChange(state);
+    };
+
+    slider.classList.toggle("disabled", state.enabled);
+    onChange(state);
+
+    return () => state;
+}
+
 let showOriginal = false;
-const toggleBtn = document.getElementById("toggleView");
+const tempControl = setupControl(
+    document.querySelector('[data-control="temperature"]'),
+    (state) => {
+        const Tmin = 1e-3;
+        const Tmax = 0.3;
+        showOriginal = state.enabled;
+        const temperature = Tmin * Math.pow(Tmax / Tmin, state.value);
+        ct.setTemp(temperature);
+        processed = ct.getProcessedImage();
+        draw();
+    }
+);
 
-toggleBtn.onclick = () => {
-    showOriginal = !showOriginal;
-    toggleBtn.textContent = showOriginal ? "Show Processed" : "Show Original";
-    draw();
-};
-
-// -----------------------------------------------------------------
-// Parameters
-// -----------------------------------------------------------------
-
-// Temperature
-const Tmin = 1e-3;
-const Tmax = 0.3;
-const tempSlider = document.getElementById("sliderTemp");
-tempSlider.addEventListener("input", () => {
-    const t = Number(tempSlider.value);
-    const temperature = Tmin * Math.pow(Tmax / Tmin, t);
-    ct.setTemp(temperature);
-    processed = ct.getProcessedImage();
-    draw();
-});
-tempSlider.dispatchEvent(new Event("input"));
 
 // -----------------------------------------------------------------
 // Palette
