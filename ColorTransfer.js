@@ -139,9 +139,10 @@ export class ColorTransfer {
         this.paletteSize = Math.min(palette.length, 32);
 
         for (let i = 0; i < this.paletteSize; i++) {
-            this.palette[i * 3 + 0] = palette[i][0];
-            this.palette[i * 3 + 1] = palette[i][1];
-            this.palette[i * 3 + 2] = palette[i][2];
+            const [l, a, b] = this._hexToOkLab(palette[i]);
+            this.palette[i * 3 + 0] = l;
+            this.palette[i * 3 + 1] = a;
+            this.palette[i * 3 + 2] = b;
         }
     }
 
@@ -260,5 +261,34 @@ export class ColorTransfer {
         this.u_palette = gl.getUniformLocation(this.program, "u_palette");
         this.u_paletteSize = gl.getUniformLocation(this.program, "u_paletteSize");
         this.u_temperature = gl.getUniformLocation(this.program, "u_temperature");
+    }
+
+    _hexToOkLab(hex) {
+        // remove leading #, convert hex to float between 0 and 1
+        const bigint = parseInt(hex.slice(1), 16);
+
+        const r = ((bigint >> 16) & 255) / 255;
+        const g = ((bigint >> 8) & 255) / 255;
+        const b = (bigint & 255) / 255;
+
+        // rgb => srgb
+        const toLinear = c =>
+        c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+
+        const lr = toLinear(r);
+        const lg = toLinear(g);
+        const lb = toLinear(b);
+
+        // srgb => lms
+        const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+        const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+        const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+
+        // lms => oklab
+        const okl = 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+        const oka = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s;
+        const okb = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+
+        return [okl, oka, okb];
     }
 }
