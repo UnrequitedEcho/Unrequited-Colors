@@ -55,15 +55,20 @@ hr {
 }
 
 .swatch {
+    position: relative;
     width: 64px;
     height: 64px;
     border-radius: 4px;
     cursor: pointer;
-    border: 2px solid transparent;
+    border: 4px solid transparent;
 }
 
 .swatch:hover {
     border-color: white;
+}
+
+.swatch.disabled {
+    border-color: red;
 }
 
 .swatch.add {

@@ -6,9 +6,19 @@ export class Palette {
     }
 
     set(colors, { preset = null } = {}) {
-        this.colors = [...colors];
+        this.colors = colors.map(c =>
+        typeof c === "string"
+            ? { color: c, disabled: false }
+            : { color: c.color, disabled: !!c.disabled }
+        );
         this.preset = preset;
         this._emit();
+    }
+
+    getActiveColors() {
+        return this.colors
+            .filter(c => !c.disabled)
+            .map(c => c.color);
     }
 
     _emit() {
@@ -31,23 +41,44 @@ export function renderPalette(container, palette, onChange) {
     }
 
     // append a swatch for each color
-    palette.forEach((color, index) => {
+    palette.forEach((c, index) => {
         const div = document.createElement("div");
         div.className = "swatch";
-        div.style.background = color;
+        div.style.background = c.color;
 
-        div.onclick = () => {
-            colorInput.value = color;
+        if (c.disabled) {
+            div.classList.add("disabled");
+        }
 
-            colorInput.oninput = (e) => {
-                const newColors = [...palette];
-                newColors[index] = e.target.value;
+        div.onmousedown = (e) => {
+            e.preventDefault();
+
+            // LEFT CLICK -> edit
+            if (e.button === 0) {
+                colorInput.value = c.color;
+
+                colorInput.oninput = (ev) => {
+                    const newColors = [...palette];
+                    newColors[index] = { ...c, color: ev.target.value };
+                    onChange(newColors);
+                };
+
+                colorInput.click();
+            }
+
+            // MIDDLE CLICK -> toggle disabled
+            else if (e.button === 1) {
+                const newColors = palette.map((col, i) =>
+                    i === index
+                        ? { ...col, disabled: !col.disabled }
+                        : col
+                );
+
                 onChange(newColors);
-            };
-
-            colorInput.click();
+            }
         };
 
+        // RIGHT CLICK -> remove
         div.oncontextmenu = (e) => {
             e.preventDefault();
 
