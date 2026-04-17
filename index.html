@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" href="data:,">
-<title>Chromap</title>
+<title>Unrequited Colors</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -11,27 +11,49 @@
 
     <!-- LEFT -->
     <div id="controls">
-        <h1>Unrequited Colors</h1>
 
+        <h1>Unrequited Colors</h1>
+        <div class="hints">
+            <p class="hint">
+                <b>Instructions</b><br>
+                Select an image<br>
+                Pick a palette<br>
+                Tweak temperature slider<br><br>
+                More on the <a href=github.com/UnrequitedEcho/Unrequited-Colors>Github Repo</a>
+            </p>
+            <p class="hint">
+                <b>Palette controls</b><br>
+                Left click: edit color<br>
+                Middle click: disable color<br>
+                Right click: remove color<br>
+            </p>
+        </div>
         <!-- File buttons -->
         <div class="row">
             <button id="openImage">Open Image</button>
             <button id="saveImage">Save Image</button>
             <button id="resetView">Reset View</button>
-            <button id="toggleView">Show Original</button>
         </div>
 
         <hr>
 
         <!-- Sliders -->
-        <div class="slider-group">
-            <label>Temperature</label>
-            <input id="sliderTemp" type="range" min="0" max="1" step="0.01" value="0.5">
+        <h2>Controls</h2>
+        <div class="slider-group" data-control="temperature">
+            <div class="slider-header">
+                <label>Temperature</label>
+                <label class="switch">
+                    <input type="checkbox" class="toggle" checked>
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+            <input type="range" class="slider" min="0" max="1" step="0.01" value="0.5">
         </div>
 
         <hr>
 
         <!-- Palette -->
+        <h2>Palette</h2>
         <button id="openPalette">Load Custom Palette from File</button>
         <select id="presetSelect"></select>
         <div id="palette"></div>
