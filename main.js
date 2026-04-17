@@ -194,7 +194,7 @@ const palette = new Palette(() => {
         palette.set(newColors);
     });
     presetSelect.value = palette.preset ?? "custom";
-    ct.setPalette(palette.colors);
+    ct.setPalette(palette.getActiveColors());
     processed = ct.getProcessedImage();
     draw();
 });
