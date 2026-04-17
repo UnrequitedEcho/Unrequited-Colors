@@ -3,6 +3,7 @@ import { Palette } from "./palette.js";
 import { renderPalette } from "./palette.js";
 
 const ct = new ColorTransfer();
+await ct.init();
 
 let image = null;
 let processed = null;

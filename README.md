@@ -68,6 +68,8 @@ The final color is the weighted average of all the colors:
 y = \frac{\sum_i w_i c_i}{\sum_i w_i}
 ```
 
+Implementation-wise, the algorithm has been ported from its original Python prototype to a WebGL fragment shader. It fully rendered on the GPU, and is applied pretty much instantaneously, enabling real-time feedback while adjusting the palette and parameters.
+
 ## Comparison to other techniques
 
 ### Overview 
