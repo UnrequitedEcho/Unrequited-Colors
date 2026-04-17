@@ -68,26 +68,24 @@ If you already have a palette in a config file (CSS, JSON, theme files, etc.), y
 
 ## How it works (for the curious)
 
-Each pixel color is first converted to the OKLab color space.
+Don't let the scary math fool you, it's actuall pretty simple.
 
-Given a pixel color \( x \in \mathbb{R}^3 \) and a palette of colors \( \{c_i\}_{i=1}^N \), also in OKLab, we compute a weighted combination:
+Each pixel color is first converted to the OKLab color space. Given a pixel color $`x`$ and a palette of colors $`C_N`$, also in OKLab, we compute a weight for each palette color $`C_i`$:
 
-\[
-w_i = \exp\left(-\left(\frac{d(x, c_i) - d_{\min}}{T}\right)^2\right)
-\]
+```math
+w_i = \exp\left(-\left(\frac{d(x,C_i) - d_{\min}}{T}\right)^2\right)
+```
 
 where:
-- \( d(x, c_i) = \|x - c_i\|^2 \) is the squared Euclidean distance in OKLab
-- \( d_{\min} = \min_i d(x, c_i) \)
-- \( T \) is the temperature parameter
+- $`d(x, c_i) = \|x - c_i\|^2`$ is the squared Euclidean distance in OKLab
+- $`d_{\min} = \min_i d(x, c_i)`$
+- $`T`$ is the temperature parameter
 
-The final color is:
+The final color is the weighted average of all the colors:
 
-\[
+```math
 y = \frac{\sum_i w_i c_i}{\sum_i w_i}
-\]
-
-This produces a smooth interpolation between palette colors for each pixel.
+```
 
 ## Comparison to other techniques
 
