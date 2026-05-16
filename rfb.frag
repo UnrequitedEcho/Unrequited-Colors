@@ -61,8 +61,7 @@ vec3 oklab_to_rgb(vec3 c) {
 }
 
 void main() {
-    // vec2 uv = v_uv, but webgl textures are upside down !
-    vec2 uv = vec2(v_uv.x, 1.0 - v_uv.y);
+    vec2 uv = v_uv;
 
     vec3 rgb = texture2D(u_image, uv).rgb;
 

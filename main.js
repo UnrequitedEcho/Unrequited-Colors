@@ -1,9 +1,12 @@
-import { ColorTransfer } from "./ColorTransfer.js";
+import { ShaderPipeline } from "./ShaderPipeline.js";
+import { RadialBasisFunctionPass } from "./ShaderPasses.js";
 import { Palette } from "./palette.js";
 import { renderPalette } from "./palette.js";
 
-const ct = new ColorTransfer();
-await ct.init();
+const shaderpipeline = new ShaderPipeline();
+const rbf = new RadialBasisFunctionPass();
+await rbf.initProgram(shaderpipeline.gl, shaderpipeline.vs);
+shaderpipeline.addPass("rfb", rbf);
 
 let image = null;
 let processed = null;
@@ -22,14 +25,11 @@ imageInput.onchange = (e) => {
 
     const img = new Image();
 
-    img.onload = () => {
+    img.onload = async () => {
         image = img;
-
-        ct.setImage(img);
-        processed = ct.getProcessedImage();
-        
+        shaderpipeline.setImage(image);
+        processed = shaderpipeline.render();
         resetTransform()
-
         draw();
     };
 
@@ -76,20 +76,17 @@ document.getElementById("resetView").onclick = () => {
 
 // draw
 function draw() {
-    if (!image && !processed) return;
+    if (!processed) return;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const source = showOriginal ? image : processed;
-    if (!source) return;
-
     ctx.drawImage(
-        source,
+        processed,
         offsetX,
         offsetY,
-        source.width * scale,
-        source.height * scale
+        processed.width * scale,
+        processed.height * scale
     );
 }
 
@@ -185,16 +182,13 @@ function setupControl(el, onChange) {
     return () => state;
 }
 
-let showOriginal = false;
 const tempControl = setupControl(
     document.querySelector('[data-control="sigma"]'),
     (state) => {
         const Tmin = 0.01;
         const Tmax = 0.3;
-        showOriginal = state.enabled;
-        const sigma = Tmin * Math.pow(Tmax / Tmin, state.value);
-        ct.setSigma(sigma);
-        processed = ct.getProcessedImage();
+        rbf.sigma = Tmin * Math.pow(Tmax / Tmin, state.value);
+        processed = shaderpipeline.render();
         draw();
     }
 );
@@ -202,9 +196,8 @@ const tempControl = setupControl(
 const topkControl = setupControl(
     document.querySelector('[data-control="topk"]'),
     (state) => {
-        showOriginal = state.enabled;
-        ct.setTopk(state.value);
-        processed = ct.getProcessedImage();
+        rbf.topk = state.value;
+        processed = shaderpipeline.render();
         draw();
     }
 );
@@ -223,8 +216,8 @@ const palette = new Palette(() => {
     presetSelect.value = palette.preset ?? "custom";
     const colors = palette.getActiveColors();
     topkSlider.max = colors.length;
-    ct.setPalette(colors);
-    processed = ct.getProcessedImage();
+    rbf.setPalette(colors);
+    processed = shaderpipeline.render();
     draw();
 });
 
