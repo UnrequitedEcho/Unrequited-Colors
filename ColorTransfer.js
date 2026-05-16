@@ -13,9 +13,15 @@ export class ColorTransfer {
         }
     }
 
-    setTemp(temperature) {
-        if (temperature !== undefined) {
-            this.temperature = temperature;
+    setSigma(sigma) {
+        if (sigma !== undefined) {
+            this.sigma = sigma;
+        }
+    }
+
+    setTopk(topk) {
+        if (topk !== undefined) {
+            this.topk = topk;
         }
     }
 
@@ -54,8 +60,9 @@ export class ColorTransfer {
         // uniforms
         gl.uniform1i(this.u_image, 0);
         gl.uniform1i(this.u_paletteSize, this.paletteSize);
-        gl.uniform1f(this.u_temperature, this.temperature);
+        gl.uniform1f(this.u_sigma, this.sigma);
         gl.uniform3fv(this.u_palette, this.palette);
+        gl.uniform1i(this.u_topk, this.topk);
 
         // bind texture
         gl.activeTexture(gl.TEXTURE0);
@@ -96,7 +103,7 @@ export class ColorTransfer {
         gl.compileShader(vs);
 
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
-        const ucSource = await fetch("./unrequited-colors.frag").then(r => r.text());
+        const ucSource = await fetch("./rfb.frag").then(r => r.text());
         gl.shaderSource(fs, ucSource);
         gl.compileShader(fs);
 
@@ -132,7 +139,8 @@ export class ColorTransfer {
         this.u_image = gl.getUniformLocation(this.program, "u_image");
         this.u_palette = gl.getUniformLocation(this.program, "u_palette");
         this.u_paletteSize = gl.getUniformLocation(this.program, "u_paletteSize");
-        this.u_temperature = gl.getUniformLocation(this.program, "u_temperature");
+        this.u_sigma = gl.getUniformLocation(this.program, "u_sigma");
+        this.u_topk = gl.getUniformLocation(this.program, "u_topk");
 
         this.texture = gl.createTexture();
     }

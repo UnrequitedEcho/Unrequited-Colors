@@ -5,7 +5,8 @@ varying vec2 v_uv;
 uniform sampler2D u_image;
 uniform vec3 u_palette[32];     // in oklab
 uniform int u_paletteSize;
-uniform float u_temperature;
+uniform float u_sigma;
+uniform int u_topk;
 
 // https://bottosson.github.io/posts/oklab
 vec3 rgb_to_oklab(vec3 c) {
@@ -67,43 +68,58 @@ void main() {
 
     vec3 x = rgb_to_oklab(rgb);
 
-    float d_min = 1e9;
+    float d_sorted[32];
+    vec3 c_sorted[32];
+    for (int i = 0; i < 32; i++) {
+        d_sorted[i] = 1e20;
+    }
+
+    // compute the distance for each color in the palette
     for (int i = 0; i < 32; i++) {
         if (i >= u_paletteSize) break;
 
         vec3 c = u_palette[i];
         float d = dot(x - c, x - c);
+        
+        // insertion sort the distance and color
+        for (int j = 0; j < 32; j++) {
+            if (j >= u_topk) break;
 
-        d_min = min(d_min, d);
+            if (d < d_sorted[j]) {
+                for (int s = 32 - 1; s > 0; s--) {
+                    if (s >= u_topk) continue;
+                    if (s <= j) continue;
+                    d_sorted[s] = d_sorted[s - 1];
+                    c_sorted[s] = c_sorted[s - 1];
+                }
+
+                d_sorted[j] = d;
+                c_sorted[j] = c;
+
+                break;
+            }
+        }
     }
 
-    float weights[32];
-    float sum = 0.0;
-
-    for (int i = 0; i < 32; i++) {
-        if (i >= u_paletteSize) break;
-
-        vec3 c = u_palette[i];
-        float d = dot(x - c, x - c);
-
-        float w = exp(-pow((d - d_min) / u_temperature, 2.0));
-
-        weights[i] = w;
-        sum += w;
-    }
-
-    sum = max(sum, 1e-9);
-
+    // weighted mix of the palette color in weight order
     vec3 result = vec3(0.0);
+    float sum_w = 0.0;
+
+    int colsize = u_paletteSize;
+    if (u_topk < colsize) {
+        colsize = u_topk;
+    }
 
     for (int i = 0; i < 32; i++) {
-        if (i >= u_paletteSize) break;
+        if (i >= colsize) break;
 
-        vec3 c = u_palette[i];
-        result += (weights[i] / sum) * c;
+        float w = exp(-(d_sorted[i] - d_sorted[0]) / (2.0 * u_sigma * u_sigma));
+        result += c_sorted[i] * w;
+        sum_w += w;
     }
+    
+    result /= max(sum_w, 1e-9);
 
     vec3 out_rgb = oklab_to_rgb(result);
-
     gl_FragColor = vec4(out_rgb, 1.0);
 }

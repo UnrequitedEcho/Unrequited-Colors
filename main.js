@@ -187,31 +187,43 @@ function setupControl(el, onChange) {
 
 let showOriginal = false;
 const tempControl = setupControl(
-    document.querySelector('[data-control="temperature"]'),
+    document.querySelector('[data-control="sigma"]'),
     (state) => {
-        const Tmin = 1e-3;
+        const Tmin = 0.01;
         const Tmax = 0.3;
         showOriginal = state.enabled;
-        const temperature = Tmin * Math.pow(Tmax / Tmin, state.value);
-        ct.setTemp(temperature);
+        const sigma = Tmin * Math.pow(Tmax / Tmin, state.value);
+        ct.setSigma(sigma);
         processed = ct.getProcessedImage();
         draw();
     }
 );
 
+const topkControl = setupControl(
+    document.querySelector('[data-control="topk"]'),
+    (state) => {
+        showOriginal = state.enabled;
+        ct.setTopk(state.value);
+        processed = ct.getProcessedImage();
+        draw();
+    }
+);
 
 // -----------------------------------------------------------------
 // Palette
 // -----------------------------------------------------------------
 const presetSelect = document.getElementById("presetSelect");
 const paletteContainer = document.getElementById("palette");
+const topkSlider = document.querySelector('[data-control="topk"] .slider');
 
 const palette = new Palette(() => {
     renderPalette(paletteContainer, palette.colors, (newColors) => {
         palette.set(newColors);
     });
     presetSelect.value = palette.preset ?? "custom";
-    ct.setPalette(palette.getActiveColors());
+    const colors = palette.getActiveColors();
+    topkSlider.max = colors.length;
+    ct.setPalette(colors);
     processed = ct.getProcessedImage();
     draw();
 });
@@ -291,4 +303,6 @@ document.getElementById("paletteFile").onchange = (e) => {
 
     reader.readAsText(file);
 };
+
+
 
