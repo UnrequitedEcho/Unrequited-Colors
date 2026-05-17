@@ -5,6 +5,14 @@ export class ShaderPipeline {
 		if (!this.gl) { throw new Error("WebGL not supported"); }
 		const gl = this.gl;
 
+		// float texture extensions
+		this.floatTexExt = gl.getExtension("OES_texture_float");
+		this.floatRTTExt = gl.getExtension("WEBGL_color_buffer_float");
+
+		if (!this.floatTexExt || !this.floatRTTExt) {
+		    throw new Error("Float textures not supported");
+		}
+
 		this.quadBuffer = this._initFullscreenQuad();
 		this.buffers = [
 		    this._createRenderTarget(),
@@ -53,7 +61,7 @@ export class ShaderPipeline {
 		for (const target of this.buffers) {
 			gl.bindTexture(gl.TEXTURE_2D, target.texture);
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, image.width, image.height,
-	    		0, gl.RGBA, gl.UNSIGNED_BYTE, null
+	    		0, gl.RGBA, gl.FLOAT, null
 			);
 		}
 
@@ -62,8 +70,8 @@ export class ShaderPipeline {
 	    gl.bindTexture(gl.TEXTURE_2D, this.inputTexture);
 	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
 	    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
@@ -112,8 +120,8 @@ export class ShaderPipeline {
 		gl.bindTexture(gl.TEXTURE_2D, texture);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
 		const framebuffer = gl.createFramebuffer();
 		gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);

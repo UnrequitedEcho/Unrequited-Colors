@@ -1,23 +1,14 @@
-export class RadialBasisFunctionPass {
-    constructor() {
-        this.sigma = 0.1;
-        this.topk = 32;
-        this.palette = [];
-        this.paletteSize = 0;
-    }
-
-    async initProgram(gl, vs) {
+export class ShaderPass {
+    initProgram(gl, vs, fragmentSource) {
         this.gl = gl;
-        // Fragment Shader
+
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
-        const rfbSource = await fetch("./rfb.frag").then(r => r.text());
-        gl.shaderSource(fs, rfbSource);
+        gl.shaderSource(fs, fragmentSource);
         gl.compileShader(fs);
         if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
             console.error(gl.getShaderInfoLog(fs));
         }
 
-        // GL program
         this.program = gl.createProgram();
         gl.attachShader(this.program, vs);
         gl.attachShader(this.program, fs);
@@ -27,26 +18,42 @@ export class RadialBasisFunctionPass {
             console.error(gl.getProgramInfoLog(this.program));
         }
 
-        // Uniform locations
         this.u_image = gl.getUniformLocation(this.program, "u_image");
-        this.u_palette = gl.getUniformLocation(this.program, "u_palette");
-        this.u_paletteSize = gl.getUniformLocation(this.program, "u_paletteSize");
-        this.u_sigma = gl.getUniformLocation(this.program, "u_sigma");
-        this.u_topk = gl.getUniformLocation(this.program, "u_topk");
     }
 
     bind(inputTexture) {
         const gl = this.gl;
+
         gl.useProgram(this.program);
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, inputTexture);
 
         gl.uniform1i(this.u_image, 0);
-        gl.uniform3fv(this.u_palette, this.palette);
-        gl.uniform1i(this.u_paletteSize, this.paletteSize);
-        gl.uniform1f(this.u_sigma, this.sigma);
-        gl.uniform1i(this.u_topk, this.topk);
+    }
+}
+
+export class RadialBasisFunctionPass extends ShaderPass {
+    constructor() {
+        super();
+        this.sigma = 0.1;
+        this.palette = [];
+        this.paletteSize = 0;
+    }
+
+    async initProgram(gl, vs, fragmentSource) {
+        super.initProgram(gl, vs, fragmentSource);
+        this.u_palette = gl.getUniformLocation(this.program, "u_palette");
+        this.u_paletteSize = gl.getUniformLocation(this.program, "u_paletteSize");
+        this.u_sigma = gl.getUniformLocation(this.program, "u_sigma");
+    }
+
+    bind(inputTexture) {
+        super.bind(inputTexture);
+        
+        this.gl.uniform3fv(this.u_palette, this.palette);
+        this.gl.uniform1i(this.u_paletteSize, this.paletteSize);
+        this.gl.uniform1f(this.u_sigma, this.sigma);
     }
 
     setPalette(palette) {

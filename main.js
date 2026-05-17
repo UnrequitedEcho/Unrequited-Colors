@@ -1,12 +1,28 @@
 import { ShaderPipeline } from "./ShaderPipeline.js";
-import { RadialBasisFunctionPass } from "./ShaderPasses.js";
+import { ShaderPass, RadialBasisFunctionPass } from "./ShaderPasses.js";
 import { Palette } from "./palette.js";
 import { renderPalette } from "./palette.js";
 
+// -----------------------------------------------------------------
+// Shader Pipeline
+// -----------------------------------------------------------------
 const shaderpipeline = new ShaderPipeline();
+
 const rbf = new RadialBasisFunctionPass();
-await rbf.initProgram(shaderpipeline.gl, shaderpipeline.vs);
+const rbfShaderSource = await fetch("./rfb.frag").then(r => r.text());
+rbf.initProgram(shaderpipeline.gl, shaderpipeline.vs, rbfShaderSource);
+
+const rto = new ShaderPass();
+const rtoShaderSource = await fetch("./rgbToOklab.frag").then(r => r.text());
+rto.initProgram(shaderpipeline.gl, shaderpipeline.vs, rtoShaderSource);
+
+const otr = new ShaderPass();
+const otrShaderSource = await fetch("./oklabToRgb.frag").then(r => r.text());
+otr.initProgram(shaderpipeline.gl, shaderpipeline.vs, otrShaderSource);
+
+shaderpipeline.addPass("rto", rto);
 shaderpipeline.addPass("rfb", rbf);
+shaderpipeline.addPass("otr", otr);
 
 let image = null;
 let processed = null;
