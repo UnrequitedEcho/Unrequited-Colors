@@ -47,7 +47,7 @@ export class RadialBasisFunctionPass extends ShaderPass {
         this.paletteSize = 0;
     }
 
-    async initProgram(gl, vs, fragmentSource) {
+    initProgram(gl, vs, fragmentSource) {
         super.initProgram(gl, vs, fragmentSource);
         this.u_palette = gl.getUniformLocation(this.program, "u_palette");
         this.u_paletteSize = gl.getUniformLocation(this.program, "u_paletteSize");
@@ -128,7 +128,6 @@ export class RadialBasisFunctionPass extends ShaderPass {
     }
 }
 
-
 export class BilateralFilterPass extends ShaderPass {
     constructor(enabled) {
         super(enabled);
@@ -137,7 +136,7 @@ export class BilateralFilterPass extends ShaderPass {
         this.resolution = [0, 0];
     }
 
-    async initProgram(gl, vs, fragmentSource) {
+    initProgram(gl, vs, fragmentSource) {
         super.initProgram(gl, vs, fragmentSource);
         this.u_sigmaSpatial = gl.getUniformLocation(this.program, "u_sigmaSpatial");
         this.u_sigmaColor = gl.getUniformLocation(this.program, "u_sigmaColor");
@@ -183,6 +182,50 @@ export class BilateralFilterPass extends ShaderPass {
 
         return createPassContainer({
             title: "Bilateral Filter",
+            enabled: this.enabled,
+            content: controls,
+
+            onToggle: enabled => {
+                this.enabled = enabled;
+                onChange();
+            }
+        });
+    }
+}
+
+export class DitherPass extends ShaderPass {
+    constructor(enabled) {
+        super(enabled);
+        this.granularity = 3;
+    }
+
+    initProgram(gl, vs, fragmentSource) {
+        super.initProgram(gl, vs, fragmentSource);
+        this.u_granularity = gl.getUniformLocation(this.program, "u_granularity");
+    }
+
+    bind(inputTexture) {
+        super.bind(inputTexture);
+        
+        this.gl.uniform1f(this.u_granularity, this.granularity);
+    }
+
+    createUI(onChange) {
+        const controls = document.createElement("div");
+
+        controls.appendChild(
+            createSlider({
+                label: "Granularity", min: 0, max: 10, value: this.granularity,
+
+                onInput: v => {
+                    this.granularity = v;
+                    onChange();
+                }
+            })
+        );
+
+        return createPassContainer({
+            title: "Random Dithering",
             enabled: this.enabled,
             content: controls,
 

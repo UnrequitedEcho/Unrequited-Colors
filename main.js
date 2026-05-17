@@ -1,5 +1,5 @@
 import { ShaderPipeline } from "./ShaderPipeline.js";
-import { ShaderPass, RadialBasisFunctionPass, BilateralFilterPass } from "./ShaderPasses.js";
+import { ShaderPass, RadialBasisFunctionPass, BilateralFilterPass, DitherPass } from "./ShaderPasses.js";
 import { Palette } from "./palette.js";
 import { renderPalette } from "./palette.js";
 
@@ -24,9 +24,30 @@ const otr = new ShaderPass(true);
 const otrShaderSource = await fetch("./oklabToRgb.frag").then(r => r.text());
 otr.initProgram(shaderpipeline.gl, shaderpipeline.vs, otrShaderSource);
 
+const dither = new DitherPass(false);
+const ditherShaderSource = `
+precision highp float;
+varying vec2 v_uv;
+uniform sampler2D u_image;
+uniform float u_granularity;
+
+highp float random(vec2 coords) {
+    return fract(sin(dot(coords.xy, vec2(12.9898,78.233))) * 43758.5453);
+}
+
+void main() {
+    vec3 c = texture2D(u_image, v_uv).xyz;
+    float noise = random(gl_FragCoord.xy) - 0.5;
+    c.x += noise * (u_granularity / 255.0);
+    gl_FragColor = vec4(c, 1.0);
+}
+`
+dither.initProgram(shaderpipeline.gl, shaderpipeline.vs, ditherShaderSource);
+
 shaderpipeline.addPass("rto", rto);
 shaderpipeline.addPass("bf", bf);
 shaderpipeline.addPass("rfb", rbf);
+shaderpipeline.addPass("dither", dither);
 shaderpipeline.addPass("otr", otr);
 
 let image = null;
@@ -52,6 +73,12 @@ shaderControls.appendChild(
     })
 );
 
+shaderControls.appendChild(
+    dither.createUI(() => {
+        processed = shaderpipeline.render();
+        draw();
+    })
+);
 
 // -----------------------------------------------------------------
 // Open Image
