@@ -93,7 +93,8 @@ export class ShaderPipeline {
 
 		for (const { pass } of this.passes) {
 			if (!pass.enabled) continue; 
-			
+			if (pass.setSize) pass.setSize(this.canvas.width, this.canvas.height);
+
 			gl.bindFramebuffer(gl.FRAMEBUFFER, write.framebuffer);
 
 			const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);

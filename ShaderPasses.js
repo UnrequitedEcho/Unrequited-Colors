@@ -1,8 +1,8 @@
 import { createPassContainer, createSlider } from "./UI_Elements.js";
 
 export class ShaderPass {
-    constructor() {
-        this.enabled = true;
+    constructor(enabled) {
+        this.enabled = enabled;
     }
 
     initProgram(gl, vs, fragmentSource) {
@@ -40,8 +40,8 @@ export class ShaderPass {
 }
 
 export class RadialBasisFunctionPass extends ShaderPass {
-    constructor() {
-        super();
+    constructor(enabled) {
+        super(enabled);
         this.sigma = 0.2;
         this.palette = [];
         this.paletteSize = 0;
@@ -66,11 +66,7 @@ export class RadialBasisFunctionPass extends ShaderPass {
         const controls = document.createElement("div");
 
         controls.appendChild(
-            createSlider({
-                label: "Sigma",
-                min: 0.01,
-                max: 0.4,
-                value: this.sigma,
+            createSlider({ label: "Sigma", min: 0.01, max: 0.4, value: this.sigma,
 
                 onInput: v => {
                     this.sigma = v;
@@ -82,7 +78,6 @@ export class RadialBasisFunctionPass extends ShaderPass {
         return createPassContainer({
             title: "Radial Basis Function",
             enabled: this.enabled,
-
             content: controls,
 
             onToggle: enabled => {
@@ -130,5 +125,71 @@ export class RadialBasisFunctionPass extends ShaderPass {
         const okb = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
 
         return [okl, oka, okb];
+    }
+}
+
+
+export class BilateralFilterPass extends ShaderPass {
+    constructor(enabled) {
+        super(enabled);
+        this.sigmaSpatial = 5;
+        this.sigmaColor = 0.15;
+        this.resolution = [0, 0];
+    }
+
+    async initProgram(gl, vs, fragmentSource) {
+        super.initProgram(gl, vs, fragmentSource);
+        this.u_sigmaSpatial = gl.getUniformLocation(this.program, "u_sigmaSpatial");
+        this.u_sigmaColor = gl.getUniformLocation(this.program, "u_sigmaColor");
+        this.u_resolution = gl.getUniformLocation(this.program, "u_resolution");
+    }
+
+    bind(inputTexture) {
+        super.bind(inputTexture);
+        
+        this.gl.uniform1f(this.u_sigmaSpatial, this.sigmaSpatial);
+        this.gl.uniform1f(this.u_sigmaColor, this.sigmaColor);
+        this.gl.uniform2fv(this.u_resolution, this.resolution);
+    }
+
+    setSize(width, height) {
+        this.resolution = [width, height];
+    }
+
+    createUI(onChange) {
+        const controls = document.createElement("div");
+
+        controls.appendChild(
+            createSlider({
+                label: "Sigma Spatial", min: 1, max: 16, value: this.sigmaSpatial,
+
+                onInput: v => {
+                    this.sigmaSpatial = v;
+                    onChange();
+                }
+            })
+        );
+
+        controls.appendChild(
+            createSlider({
+                label: "Sigma Color", min: 0.01, max: 1, step: 0.001, value: this.sigmaColor,
+
+                onInput: v => {
+                    this.sigmaColor = v * v;
+                    onChange();
+                }
+            })
+        );
+
+        return createPassContainer({
+            title: "Bilateral Filter",
+            enabled: this.enabled,
+            content: controls,
+
+            onToggle: enabled => {
+                this.enabled = enabled;
+                onChange();
+            }
+        });
     }
 }

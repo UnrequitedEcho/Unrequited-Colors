@@ -10,7 +10,7 @@ uniform float u_sigma;
 void main() {
     vec2 uv = v_uv;
 
-    vec3 x = texture2D(u_image, uv).rgb;
+    vec3 x = texture2D(u_image, uv).xyz;
 
     // compute the distances for each color in the palette
     float d[32];

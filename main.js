@@ -1,5 +1,5 @@
 import { ShaderPipeline } from "./ShaderPipeline.js";
-import { ShaderPass, RadialBasisFunctionPass } from "./ShaderPasses.js";
+import { ShaderPass, RadialBasisFunctionPass, BilateralFilterPass } from "./ShaderPasses.js";
 import { Palette } from "./palette.js";
 import { renderPalette } from "./palette.js";
 
@@ -8,19 +8,24 @@ import { renderPalette } from "./palette.js";
 // -----------------------------------------------------------------
 const shaderpipeline = new ShaderPipeline();
 
-const rbf = new RadialBasisFunctionPass();
+const rbf = new RadialBasisFunctionPass(true);
 const rbfShaderSource = await fetch("./rfb.frag").then(r => r.text());
 rbf.initProgram(shaderpipeline.gl, shaderpipeline.vs, rbfShaderSource);
 
-const rto = new ShaderPass();
+const bf = new BilateralFilterPass(false);
+const bfShaderSource = await fetch("./bilateral.frag").then(r => r.text());
+bf.initProgram(shaderpipeline.gl, shaderpipeline.vs, bfShaderSource);
+
+const rto = new ShaderPass(true);
 const rtoShaderSource = await fetch("./rgbToOklab.frag").then(r => r.text());
 rto.initProgram(shaderpipeline.gl, shaderpipeline.vs, rtoShaderSource);
 
-const otr = new ShaderPass();
+const otr = new ShaderPass(true);
 const otrShaderSource = await fetch("./oklabToRgb.frag").then(r => r.text());
 otr.initProgram(shaderpipeline.gl, shaderpipeline.vs, otrShaderSource);
 
 shaderpipeline.addPass("rto", rto);
+shaderpipeline.addPass("bf", bf);
 shaderpipeline.addPass("rfb", rbf);
 shaderpipeline.addPass("otr", otr);
 
@@ -32,12 +37,21 @@ let processed = null;
 // -----------------------------------------------------------------
 
 const shaderControls = document.getElementById("shaderControls");
+
+shaderControls.appendChild(
+    bf.createUI(() => {
+        processed = shaderpipeline.render();
+        draw();
+    })
+);
+
 shaderControls.appendChild(
     rbf.createUI(() => {
         processed = shaderpipeline.render();
         draw();
     })
 );
+
 
 // -----------------------------------------------------------------
 // Open Image
@@ -70,13 +84,13 @@ imageInput.onchange = (e) => {
 const saveBtn = document.getElementById("saveImage");
 
 saveBtn.onclick = () => {
-    const canvas = ct.getProcessedImage();
+    const canvas = shaderpipeline.render();
     if (!canvas) return;
 
     canvas.toBlob(blob => {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "palette-shift.png";
+        a.download = "palettized.png";
         a.click();
         URL.revokeObjectURL(a.href);
     });
