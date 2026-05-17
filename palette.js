@@ -44,8 +44,8 @@ export function renderPalette(container, palette, onChange) {
     palette.forEach((c, index) => {
         const div = document.createElement("div");
         div.className = "swatch";
-        div.style.background = c.color;
-
+        div.style.backgroundColor = c.color;
+        
         if (c.disabled) {
             div.classList.add("disabled");
         }

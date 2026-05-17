@@ -28,7 +28,7 @@ let image = null;
 let processed = null;
 
 // -----------------------------------------------------------------
-// Controls
+// Shader Controls
 // -----------------------------------------------------------------
 
 const shaderControls = document.getElementById("shaderControls");
@@ -86,7 +86,9 @@ saveBtn.onclick = () => {
 // Canvas
 // -----------------------------------------------------------------
 const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const ctx = canvas.getContext("2d", {
+    alpha: false
+});
 
 let scale = 1;
 let offsetX = 0;
