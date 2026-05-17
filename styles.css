@@ -161,21 +161,73 @@ select {
     }
 }
 
-/* CONTROL GROUP */
+/* PASS */
+
+.pass {
+    background: #222;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    .disabled {
+        opacity: 0.6;
+    }
+}
+
+.pass-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pass-title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.pass-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
 .slider-group {
     display: flex;
     flex-direction: column;
     gap: 4px;
 
-    .slider-header {
+    .slider-headerRow {
         display: flex;
         justify-content: space-between;
         align-items: center;
 
-        /* label */
-        label {
+        label, .slider-value {
             font-size: 11px;
             opacity: 0.8;
+        }
+    }
+
+    .slider-sliderRow {
+        display:flex;
+        align-items: center;
+        gap: 10px;
+
+        .slider {
+            flex: 1 1 auto;
+            margin: 0;
+        }
+
+        .slider-reset {
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
         }
     }
 }

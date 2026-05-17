@@ -1,4 +1,10 @@
+import { createPassContainer, createSlider } from "./UI_Elements.js";
+
 export class ShaderPass {
+    constructor() {
+        this.enabled = true;
+    }
+
     initProgram(gl, vs, fragmentSource) {
         this.gl = gl;
 
@@ -36,7 +42,7 @@ export class ShaderPass {
 export class RadialBasisFunctionPass extends ShaderPass {
     constructor() {
         super();
-        this.sigma = 0.1;
+        this.sigma = 0.2;
         this.palette = [];
         this.paletteSize = 0;
     }
@@ -54,6 +60,36 @@ export class RadialBasisFunctionPass extends ShaderPass {
         this.gl.uniform3fv(this.u_palette, this.palette);
         this.gl.uniform1i(this.u_paletteSize, this.paletteSize);
         this.gl.uniform1f(this.u_sigma, this.sigma);
+    }
+
+    createUI(onChange) {
+        const controls = document.createElement("div");
+
+        controls.appendChild(
+            createSlider({
+                label: "Sigma",
+                min: 0.01,
+                max: 0.4,
+                value: this.sigma,
+
+                onInput: v => {
+                    this.sigma = v;
+                    onChange();
+                }
+            })
+        );
+
+        return createPassContainer({
+            title: "Radial Basis Function",
+            enabled: this.enabled,
+
+            content: controls,
+
+            onToggle: enabled => {
+                this.enabled = enabled;
+                onChange();
+            }
+        });
     }
 
     setPalette(palette) {

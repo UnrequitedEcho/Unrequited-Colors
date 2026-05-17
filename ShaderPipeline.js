@@ -92,6 +92,8 @@ export class ShaderPipeline {
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
 		for (const { pass } of this.passes) {
+			if (!pass.enabled) continue; 
+			
 			gl.bindFramebuffer(gl.FRAMEBUFFER, write.framebuffer);
 
 			const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);

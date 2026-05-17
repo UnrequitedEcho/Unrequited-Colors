@@ -28,6 +28,18 @@ let image = null;
 let processed = null;
 
 // -----------------------------------------------------------------
+// Controls
+// -----------------------------------------------------------------
+
+const shaderControls = document.getElementById("shaderControls");
+shaderControls.appendChild(
+    rbf.createUI(() => {
+        processed = shaderpipeline.render();
+        draw();
+    })
+);
+
+// -----------------------------------------------------------------
 // Open Image
 // -----------------------------------------------------------------
 const openImageBtn = document.getElementById("openImage");
@@ -169,61 +181,10 @@ window.addEventListener("mousemove", e => {
 });
 
 // -----------------------------------------------------------------
-// Controls
-// -----------------------------------------------------------------
-
-function setupControl(el, onChange) {
-    const slider = el.querySelector(".slider");
-    const toggle = el.querySelector(".toggle");
-
-    let state = {
-        value: parseFloat(slider.value),
-        enabled: !toggle.checked
-    };
-
-    slider.oninput = () => {
-        state.value = parseFloat(slider.value);
-        onChange(state);
-    };
-
-    toggle.onchange = () => {
-        state.enabled = !toggle.checked;
-        slider.classList.toggle("disabled", state.enabled);
-        onChange(state);
-    };
-
-    slider.classList.toggle("disabled", state.enabled);
-    onChange(state);
-
-    return () => state;
-}
-
-const tempControl = setupControl(
-    document.querySelector('[data-control="sigma"]'),
-    (state) => {
-        const Tmin = 0.01;
-        const Tmax = 0.3;
-        rbf.sigma = Tmin * Math.pow(Tmax / Tmin, state.value);
-        processed = shaderpipeline.render();
-        draw();
-    }
-);
-
-const topkControl = setupControl(
-    document.querySelector('[data-control="topk"]'),
-    (state) => {
-        rbf.topk = state.value;
-        processed = shaderpipeline.render();
-        draw();
-    }
-);
-
-// -----------------------------------------------------------------
 // Palette
 // -----------------------------------------------------------------
 const presetSelect = document.getElementById("presetSelect");
 const paletteContainer = document.getElementById("palette");
-const topkSlider = document.querySelector('[data-control="topk"] .slider');
 
 const palette = new Palette(() => {
     renderPalette(paletteContainer, palette.colors, (newColors) => {
@@ -231,7 +192,6 @@ const palette = new Palette(() => {
     });
     presetSelect.value = palette.preset ?? "custom";
     const colors = palette.getActiveColors();
-    topkSlider.max = colors.length;
     rbf.setPalette(colors);
     processed = shaderpipeline.render();
     draw();
