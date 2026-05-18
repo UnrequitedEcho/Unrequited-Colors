@@ -1,4 +1,5 @@
 precision highp float;
+
 varying vec2 v_uv;
 uniform sampler2D u_image;
 uniform float u_granularity;

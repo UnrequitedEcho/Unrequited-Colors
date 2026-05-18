@@ -42,9 +42,10 @@ export class ShaderPass {
 export class RadialBasisFunctionPass extends ShaderPass {
     constructor(enabled) {
         super(enabled);
-        this.sigma = 0.2;
+        this.sigma = 0.35 * 0.35;
         this.palette = [];
         this.paletteSize = 0;
+        this.chromaBias = 0;
     }
 
     initProgram(gl, vs, fragmentSource) {
@@ -52,31 +53,42 @@ export class RadialBasisFunctionPass extends ShaderPass {
         this.u_palette = gl.getUniformLocation(this.program, "u_palette");
         this.u_paletteSize = gl.getUniformLocation(this.program, "u_paletteSize");
         this.u_sigma = gl.getUniformLocation(this.program, "u_sigma");
+        this.u_chromaBias = gl.getUniformLocation(this.program, "u_chromaBias");
     }
 
     bind(inputTexture) {
         super.bind(inputTexture);
-        
         this.gl.uniform3fv(this.u_palette, this.palette);
         this.gl.uniform1i(this.u_paletteSize, this.paletteSize);
         this.gl.uniform1f(this.u_sigma, this.sigma);
+        this.gl.uniform1f(this.u_chromaBias, this.chromaBias);
     }
 
     createUI(onChange) {
         const controls = document.createElement("div");
 
         controls.appendChild(
-            createSlider({ label: "Sigma", min: 0.01, max: 0.4, value: this.sigma,
+            createSlider({ label: "Color Mix", min: 0.1, max: 0.6, value: 0.35,
 
                 onInput: v => {
-                    this.sigma = v;
+                    this.sigma = v * v;
+                    onChange();
+                }
+            })
+        );
+
+        controls.appendChild(
+            createSlider({ label: "Prefer Colors", min: 0, max: 10, value: this.chromaBias,
+
+                onInput: v => {
+                    this.chromaBias = v * v;
                     onChange();
                 }
             })
         );
 
         return createPassContainer({
-            title: "Radial Basis Function",
+            title: "Palettization",
             enabled: this.enabled,
             content: controls,
 
@@ -131,14 +143,12 @@ export class RadialBasisFunctionPass extends ShaderPass {
 export class BilateralFilterPass extends ShaderPass {
     constructor(enabled) {
         super(enabled);
-        this.sigmaSpatial = 5;
-        this.sigmaColor = 0.15;
+        this.sigmaColor = 0.15 * 0.15;
         this.resolution = [0, 0];
     }
 
     initProgram(gl, vs, fragmentSource) {
         super.initProgram(gl, vs, fragmentSource);
-        this.u_sigmaSpatial = gl.getUniformLocation(this.program, "u_sigmaSpatial");
         this.u_sigmaColor = gl.getUniformLocation(this.program, "u_sigmaColor");
         this.u_resolution = gl.getUniformLocation(this.program, "u_resolution");
     }
@@ -160,18 +170,7 @@ export class BilateralFilterPass extends ShaderPass {
 
         controls.appendChild(
             createSlider({
-                label: "Sigma Spatial", min: 1, max: 16, value: this.sigmaSpatial,
-
-                onInput: v => {
-                    this.sigmaSpatial = v;
-                    onChange();
-                }
-            })
-        );
-
-        controls.appendChild(
-            createSlider({
-                label: "Sigma Color", min: 0.01, max: 1, step: 0.001, value: this.sigmaColor,
+                label: "Radius", min: 0.1, max: 0.5, step: 0.01, value: 0.15,
 
                 onInput: v => {
                     this.sigmaColor = v * v;
@@ -181,7 +180,7 @@ export class BilateralFilterPass extends ShaderPass {
         );
 
         return createPassContainer({
-            title: "Bilateral Filter",
+            title: "Smart Blur",
             enabled: this.enabled,
             content: controls,
 
@@ -196,7 +195,7 @@ export class BilateralFilterPass extends ShaderPass {
 export class DitherPass extends ShaderPass {
     constructor(enabled) {
         super(enabled);
-        this.granularity = 2;
+        this.granularity = 1;
     }
 
     initProgram(gl, vs, fragmentSource) {
@@ -214,17 +213,17 @@ export class DitherPass extends ShaderPass {
 
         controls.appendChild(
             createSlider({
-                label: "Granularity", min: 0, max: 20, value: this.granularity,
+                label: "Strength", min: 0, max: 4, value: this.granularity,
 
                 onInput: v => {
-                    this.granularity = v;
+                    this.granularity = v * v;
                     onChange();
                 }
             })
         );
 
         return createPassContainer({
-            title: "Random Dithering",
+            title: "Anti-Banding",
             enabled: this.enabled,
             content: controls,
 

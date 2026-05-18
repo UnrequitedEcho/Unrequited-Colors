@@ -38,7 +38,7 @@ let image = null;
 let processed = null;
 
 // -----------------------------------------------------------------
-// Shader Controls
+// Shaders Controls Setup
 // -----------------------------------------------------------------
 
 const shaderControls = document.getElementById("shaderControls");
@@ -218,8 +218,7 @@ const palette = new Palette(() => {
         palette.set(newColors);
     });
     presetSelect.value = palette.preset ?? "custom";
-    const colors = palette.getActiveColors();
-    rbf.setPalette(colors);
+    rbf.setPalette(palette.getActiveColors());
     processed = shaderpipeline.render();
     draw();
 });
