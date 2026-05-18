@@ -196,7 +196,7 @@ export class BilateralFilterPass extends ShaderPass {
 export class DitherPass extends ShaderPass {
     constructor(enabled) {
         super(enabled);
-        this.granularity = 3;
+        this.granularity = 2;
     }
 
     initProgram(gl, vs, fragmentSource) {
@@ -206,7 +206,6 @@ export class DitherPass extends ShaderPass {
 
     bind(inputTexture) {
         super.bind(inputTexture);
-        
         this.gl.uniform1f(this.u_granularity, this.granularity);
     }
 
@@ -215,7 +214,7 @@ export class DitherPass extends ShaderPass {
 
         controls.appendChild(
             createSlider({
-                label: "Granularity", min: 0, max: 10, value: this.granularity,
+                label: "Granularity", min: 0, max: 20, value: this.granularity,
 
                 onInput: v => {
                     this.granularity = v;

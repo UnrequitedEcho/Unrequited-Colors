@@ -25,23 +25,7 @@ const otrShaderSource = await fetch("./oklabToRgb.frag").then(r => r.text());
 otr.initProgram(shaderpipeline.gl, shaderpipeline.vs, otrShaderSource);
 
 const dither = new DitherPass(false);
-const ditherShaderSource = `
-precision highp float;
-varying vec2 v_uv;
-uniform sampler2D u_image;
-uniform float u_granularity;
-
-highp float random(vec2 coords) {
-    return fract(sin(dot(coords.xy, vec2(12.9898,78.233))) * 43758.5453);
-}
-
-void main() {
-    vec3 c = texture2D(u_image, v_uv).xyz;
-    float noise = random(gl_FragCoord.xy) - 0.5;
-    c.x += noise * (u_granularity / 255.0);
-    gl_FragColor = vec4(c, 1.0);
-}
-`
+const ditherShaderSource =  await fetch("./dither.frag").then(r => r.text());
 dither.initProgram(shaderpipeline.gl, shaderpipeline.vs, ditherShaderSource);
 
 shaderpipeline.addPass("rto", rto);
