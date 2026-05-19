@@ -1,6 +1,13 @@
 import { ShaderPipeline } from "./ShaderPipeline.js";
 import { ShaderPass, RadialBasisFunctionPass, BilateralFilterPass, DitherPass } from "./ShaderPasses.js";
 import { Palette } from "./Palette.js";
+import { Viewport } from "./Viewport.js";
+
+// -----------------------------------------------------------------
+// Viewport
+// -----------------------------------------------------------------
+const canvas = document.getElementById("canvas");
+const viewport = new Viewport(canvas);
 
 // -----------------------------------------------------------------
 // Shader Pipeline
@@ -44,27 +51,27 @@ const shaderControls = document.getElementById("shaderControls");
 
 shaderControls.appendChild(
     bf.createUI(() => {
-        processed = shaderpipeline.render();
-        draw();
+        viewport.setProcessedImage(shaderpipeline.render());
+        viewport.draw();
     })
 );
 
 shaderControls.appendChild(
     rbf.createUI(() => {
-        processed = shaderpipeline.render();
-        draw();
+        viewport.setProcessedImage(shaderpipeline.render());
+        viewport.draw();
     })
 );
 
 shaderControls.appendChild(
     dither.createUI(() => {
-        processed = shaderpipeline.render();
-        draw();
+        viewport.setProcessedImage(shaderpipeline.render());
+        viewport.draw();
     })
 );
 
 // -----------------------------------------------------------------
-// Open Image
+// Button Row
 // -----------------------------------------------------------------
 const openImageBtn = document.getElementById("openImage");
 const imageInput = document.getElementById("imageInput");
@@ -80,24 +87,20 @@ imageInput.onchange = (e) => {
     img.onload = async () => {
         image = img;
         shaderpipeline.setImage(image);
-        processed = shaderpipeline.render();
-        resetTransform()
-        draw();
+        viewport.setProcessedImage(shaderpipeline.render());
+        viewport.resetTransform()
+        viewport.draw();
     };
 
     img.src = URL.createObjectURL(file);
 };
 
-// -----------------------------------------------------------------
-// Save Image
-// -----------------------------------------------------------------
 const saveBtn = document.getElementById("saveImage");
-
 saveBtn.onclick = () => {
-    const canvas = shaderpipeline.render();
-    if (!canvas) return;
+    const saveCanvas = shaderpipeline.render();
+    if (!saveCanvas) return;
 
-    canvas.toBlob(blob => {
+    saveCanvas.toBlob(blob => {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = "palettized.png";
@@ -106,105 +109,11 @@ saveBtn.onclick = () => {
     });
 };
 
-// -----------------------------------------------------------------
-// Canvas
-// -----------------------------------------------------------------
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d", {
-    alpha: false
-});
-
-let scale = 1;
-let offsetX = 0;
-let offsetY = 0;
-let dragging = false;
-let lastX = 0;
-let lastY = 0;
-
-resize();
-window.addEventListener("resize", resize);
-document.getElementById("resetView").onclick = () => {
-    resetTransform();
-    draw();
-};
-
-// draw
-function draw() {
-    if (!processed) return;
-
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    ctx.drawImage(
-        processed,
-        offsetX,
-        offsetY,
-        processed.width * scale,
-        processed.height * scale
-    );
+const resetBtn = document.getElementById("resetView")
+resetBtn.onclick = () => {
+    viewport.resetTransform();
+    viewport.draw();
 }
-
-// resize
-function resize() {
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
-    resetTransform();
-    draw();
-}
-
-// center image
-function resetTransform() {
-    if (!processed) return;
-
-    scale = Math.min(
-            canvas.width / processed.width,
-            canvas.height / processed.height
-        );
-
-    offsetX = (canvas.width - processed.width * scale) / 2;
-    offsetY = (canvas.height - processed.height * scale) / 2;
-}
-
-// zoom (cursor-centered)
-canvas.onwheel = e => {
-    e.preventDefault();
-
-    const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-
-    const mx = e.offsetX;
-    const my = e.offsetY;
-
-    offsetX = mx - (mx - offsetX) * zoom;
-    offsetY = my - (my - offsetY) * zoom;
-
-    scale *= zoom;
-
-    draw();
-};
-
-// drag to pan
-canvas.addEventListener("mousedown", e => {
-    dragging = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-});
-
-window.addEventListener("mouseup", () => {
-    dragging = false;
-});
-
-window.addEventListener("mousemove", e => {
-    if (!dragging) return;
-    if (e.buttons === 0) return;
-
-    offsetX += e.clientX - lastX;
-    offsetY += e.clientY - lastY;
-
-    lastX = e.clientX;
-    lastY = e.clientY;
-
-    draw();
-});
 
 // -----------------------------------------------------------------
 // Palette
@@ -213,7 +122,7 @@ const paletteContainer = document.getElementById("palette");
 const presets = await fetch("./palettes.json").then(r => r.json());
 const palette = new Palette((colors) => {
     rbf.setPalette(colors);
-    processed = shaderpipeline.render();
-    draw();
+    viewport.setProcessedImage(shaderpipeline.render());
+    viewport.draw();
 });
 palette.createUI(paletteContainer, presets);
