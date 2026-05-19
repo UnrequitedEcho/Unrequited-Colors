@@ -30,7 +30,7 @@
             </p>
         </div>
         <!-- File buttons -->
-        <div class="row">
+        <div class="button-row">
             <button id="openImage">Open Image</button>
             <button id="saveImage">Save Image</button>
             <button id="resetView">Reset View</button>
@@ -46,8 +46,6 @@
 
         <!-- Palette -->
         <h2>Palette</h2>
-        <button id="openPalette">Load Custom Palette from File</button>
-        <select id="presetSelect"></select>
         <div id="palette"></div>
 
     </div>
@@ -57,7 +55,6 @@
         <canvas id="canvas"></canvas>
     </div>
 
-    <input id="paletteFile" type="file" hidden>
     <input id="imageInput" type="file" accept="image/*" style="display:none;">
     <script type="module" src="main.js"></script> 
 

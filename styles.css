@@ -60,7 +60,7 @@ hr {
 }
 
 /* BUTTONS */
-.row {
+.button-row {
     display: flex;
     gap: 8px;
 }
@@ -86,6 +86,7 @@ button {
 
 /* SELECT */
 select {
+    width: 100%;
     padding: 5px;
     background: #2a2a2a;
     border: 1px solid #3a3a3a;
@@ -239,6 +240,12 @@ select {
 
 /* PALETTE */
 #palette {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#paletteDisp {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 6px;

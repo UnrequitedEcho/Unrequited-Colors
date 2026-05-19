@@ -1,7 +1,6 @@
 import { ShaderPipeline } from "./ShaderPipeline.js";
 import { ShaderPass, RadialBasisFunctionPass, BilateralFilterPass, DitherPass } from "./ShaderPasses.js";
-import { Palette } from "./palette.js";
-import { renderPalette } from "./palette.js";
+import { Palette } from "./Palette.js";
 
 // -----------------------------------------------------------------
 // Shader Pipeline
@@ -210,94 +209,11 @@ window.addEventListener("mousemove", e => {
 // -----------------------------------------------------------------
 // Palette
 // -----------------------------------------------------------------
-const presetSelect = document.getElementById("presetSelect");
 const paletteContainer = document.getElementById("palette");
-
-const palette = new Palette(() => {
-    renderPalette(paletteContainer, palette.colors, (newColors) => {
-        palette.set(newColors);
-    });
-    presetSelect.value = palette.preset ?? "custom";
-    rbf.setPalette(palette.getActiveColors());
+const presets = await fetch("./palettes.json").then(r => r.json());
+const palette = new Palette((colors) => {
+    rbf.setPalette(colors);
     processed = shaderpipeline.render();
     draw();
 });
-
-// -----------------------------------------------------------------
-// Palette Presets
-// -----------------------------------------------------------------
-const optCustom = document.createElement("option");
-optCustom.value = "custom";
-optCustom.textContent = "Custom";
-optCustom.disabled = true;
-presetSelect.appendChild(optCustom);
-
-const presets = await fetch("palettes.json").then(r => r.json());
-
-presets.forEach((p, i) => {
-    const opt = document.createElement("option");
-    opt.value = p.name;
-    opt.textContent = p.name;
-    presetSelect.appendChild(opt);
-});
-
-presetSelect.onchange = () => {
-    if (presetSelect.value === "custom") return;
-
-    const p = presets.find(p => p.name === presetSelect.value);
-    palette.set(p.colors, { preset: p.name });
-};
-
-// Initialization
-if (presets.length > 0) {
-    const p = presets[0];
-    presetSelect.value = p.name;
-    palette.set(p.colors, { preset: p.name });
-} else {
-    presetSelect.value = "custom";
-}
-
-// -----------------------------------------------------------------
-// Palette Import
-// -----------------------------------------------------------------
-document.getElementById("openPalette").onclick = () => {
-    document.getElementById("paletteFile").click();
-};
-
-document.getElementById("paletteFile").onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-        const text = reader.result;
-        const matches = text.match(/[0-9a-fA-F]{6}/g) || [];
-        const seen = new Set();
-        const colors = [];
-
-        for (const hex of matches) {
-            const color = "#" + hex.toLowerCase();
-
-            if (!seen.has(color)) {
-                seen.add(color);
-                colors.push(color);
-
-                if (colors.length === 32) break;
-            }
-        }
-
-        if (colors.length === 0) {
-            alert("No valid colors found.");
-            return;
-        }
-
-        palette.set(colors);
-        presetSelect.value = "custom";
-    };
-
-    reader.readAsText(file);
-};
-
-
-
+palette.createUI(paletteContainer, presets);
