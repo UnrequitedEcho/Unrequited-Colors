@@ -162,10 +162,27 @@ select {
     }
 }
 
+.sectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#effects {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
 #shaderControls {
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+#shaderControls.disabled {
+    opacity: 0.5;
+    pointer-events: none;
 }
 
 /* PASS */
@@ -177,10 +194,10 @@ select {
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
 
-    .disabled {
-        opacity: 0.6;
-    }
+.pass.disabled {
+    opacity: 0.5;
 }
 
 .pass-header {

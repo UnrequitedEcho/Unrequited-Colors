@@ -70,6 +70,17 @@ shaderControls.appendChild(
     })
 );
 
+const showProcessed = document.getElementById("showProcessed");
+showProcessed.onchange = () => {
+    if (showProcessed.checked) {
+        shaderControls.classList.remove("disabled");
+        viewport.setViewMode("processed");
+    } else {
+        shaderControls.classList.add("disabled");
+        viewport.setViewMode("original");
+    }
+};
+
 // -----------------------------------------------------------------
 // Button Row
 // -----------------------------------------------------------------
@@ -87,6 +98,7 @@ imageInput.onchange = (e) => {
     img.onload = async () => {
         image = img;
         shaderpipeline.setImage(image);
+        viewport.setOriginalImage(image);
         viewport.setProcessedImage(shaderpipeline.render());
         viewport.resetTransform()
         viewport.draw();
