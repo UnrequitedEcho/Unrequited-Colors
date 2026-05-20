@@ -114,22 +114,23 @@ export class ShaderPass {
         sliderRow.appendChild(resetBtn);
 
         // Events
-        function update(v) {
-            slider.value = v;
-            const v_transformed = transform(v);
-            valueEl.textContent = format(v_transformed);
-            onInput(v_transformed);
+        slider.oninput = () => {
+            const value = transform(slider.value);
+            valueEl.textContent = format(value);
         }
 
-        slider.oninput = () => {
-            update(slider.value);
+        slider.onchange = () => {
+            const value = transform(slider.value);
+            onInput(value);
         };
 
         resetBtn.onclick = () => {
-            update(defaultValue);
+            slider.value = defaultValue;
+            slider.oninput();
+            slider.onchange();
         };
 
-        update(defaultValue);
+        resetBtn.click();
 
         sliderGroup.appendChild(headerRow);
         sliderGroup.appendChild(sliderRow);

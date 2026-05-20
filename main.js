@@ -21,7 +21,7 @@ async function setupShaders(shadersConfig) {
         shaderpipeline.addPass(id, pass);
         if (config.ui) {
             effectsContainer.appendChild(pass.createUI(() => {
-                viewport.setProcessedImage(shaderpipeline.render());
+                viewport.setImage(shaderpipeline.render());
                 viewport.draw();
             }))
         }
@@ -46,10 +46,14 @@ const globalEffectsToggle = document.getElementById("global-effects-toggle");
 globalEffectsToggle.onchange = () => {
     if (globalEffectsToggle.checked) {
         effectsContainer.classList.remove("disabled");
-        viewport.setViewMode("processed");
+        shaderpipeline.skipAllPasses = false;
+        viewport.setImage(shaderpipeline.render());
+        viewport.draw()
     } else {
         effectsContainer.classList.add("disabled");
-        viewport.setViewMode("original");
+        shaderpipeline.skipAllPasses = true;
+        viewport.setImage(shaderpipeline.render());
+        viewport.draw()
     }
 }
 
@@ -92,8 +96,7 @@ openImageBtn.onclick = () => {
         const img = await importImage(file);
 
         shaderpipeline.setImage(img);
-        viewport.setOriginalImage(img);
-        viewport.setProcessedImage(shaderpipeline.render());
+        viewport.setImage(shaderpipeline.render());
         viewport.resetTransform();
         viewport.draw();
     };
@@ -128,7 +131,7 @@ const paletteContainer = document.getElementById("palette");
 const presets = await fetch("./palettes.json").then(r => r.json());
 const palette = new Palette((colors) => {
     shaders.rbf.setPalette(colors);
-    viewport.setProcessedImage(shaderpipeline.render());
+    viewport.setImage(shaderpipeline.render());
     viewport.draw();
 });
 palette.createUI(paletteContainer, presets);

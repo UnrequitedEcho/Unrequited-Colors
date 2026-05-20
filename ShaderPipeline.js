@@ -8,7 +8,6 @@ export class ShaderPipeline {
 		// float texture extensions
 		this.floatTexExt = gl.getExtension("OES_texture_float");
 		this.floatRTTExt = gl.getExtension("WEBGL_color_buffer_float");
-
 		if (!this.floatTexExt || !this.floatRTTExt) {
 		    throw new Error("Float textures not supported");
 		}
@@ -31,16 +30,22 @@ export class ShaderPipeline {
             }
         `);
         gl.compileShader(this.vs);
-        if (!gl.getShaderParameter(this.vs, gl.COMPILE_STATUS)) {
-		    console.error(gl.getShaderInfoLog(this.vs));
-		}
+
+        this.hasImage = false;
+        this.texture = gl.createTexture();
+	    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+	    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
 
         // shaderpasses
         this.passes = [];
 		this.outputPass = new OutputPass();
 		this.outputPass.initProgram(gl, this.vs);
 
-		this.inputTexture = null;
+		this.skipAllPasses = false;
 	}
 
 	addPass(name, pass) {
@@ -58,6 +63,9 @@ export class ShaderPipeline {
 		this.canvas.width = image.width;
 		this.canvas.height = image.height;
 
+		gl.bindTexture(gl.TEXTURE_2D, this.texture);
+	    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
 		for (const target of this.buffers) {
 			gl.bindTexture(gl.TEXTURE_2D, target.texture);
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, image.width, image.height,
@@ -65,25 +73,15 @@ export class ShaderPipeline {
 			);
 		}
 
-		// create texture
-		this.inputTexture = gl.createTexture();
-	    gl.bindTexture(gl.TEXTURE_2D, this.inputTexture);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-	    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-
-	    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+		this.hasImage = true;
 	}
 
 	render() {
+		if (!this.hasImage) { return null; }
+
 		const gl = this.gl;
 		
-		if (!this.inputTexture) { return null; }
-
-		let currentTexture = this.inputTexture;
+		let currentTexture = this.texture;
 		let read = this.buffers[0];
 		let write = this.buffers[1];
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
@@ -92,7 +90,7 @@ export class ShaderPipeline {
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
 		for (const { pass } of this.passes) {
-			if (!pass.enabled) continue; 
+			if (!pass.enabled || this.skipAllPasses) continue; 
 			if (pass.setSize) pass.setSize(this.canvas.width, this.canvas.height);
 
 			gl.bindFramebuffer(gl.FRAMEBUFFER, write.framebuffer);
@@ -154,20 +152,16 @@ export class OutputPass {
         this.gl = gl;
         // Fragment Shader
         const fs = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fs, 
-`
-precision highp float;
-varying vec2 v_uv;
-uniform sampler2D u_image;
-void main() {
-    gl_FragColor = texture2D(u_image, v_uv);
-}
-`
+        gl.shaderSource(fs, `
+			precision highp float;
+			varying vec2 v_uv;
+			uniform sampler2D u_image;
+			void main() {
+			    gl_FragColor = texture2D(u_image, v_uv);
+			}
+		`
         );
         gl.compileShader(fs);
-        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
-		    console.error(gl.getShaderInfoLog(fs));
-		}
 
         // GL program
         this.program = gl.createProgram();

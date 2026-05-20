@@ -1,13 +1,75 @@
+const vsSource = `
+attribute vec2 a_pos;
+varying vec2 v_uv;
+
+void main() {
+    v_uv = (a_pos + 1.0) * 0.5;
+    gl_Position = vec4(a_pos, 0.0, 1.0);
+}
+`
+
+const fsSource = `
+precision highp float; 
+varying vec2 v_uv; 
+uniform sampler2D u_image; 
+uniform float u_scale; 
+uniform vec2 u_offset; 
+uniform vec2 u_canvasSize; 
+uniform vec2 u_imageSize; 
+
+void main() { 
+	vec2 screenPx = vec2(
+	    v_uv.x * u_canvasSize.x,
+	    (1.0 - v_uv.y) * u_canvasSize.y
+	);
+	vec2 imagePx = (screenPx - u_offset) / u_scale; 
+	vec2 uv = imagePx / u_imageSize; 
+
+	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { 
+		gl_FragColor = vec4(0.0); return; 
+	} 
+
+	gl_FragColor = texture2D(u_image, uv);
+}
+`
+
 export class Viewport {
 	constructor(canvas) {
 		this.canvas = canvas; // visible canvas
-		this.ctx = canvas.getContext("2d");
+		this.gl = this.canvas.getContext("webgl");
+		if (!this.gl) { throw new Error("WebGL not supported"); }
+		const gl = this.gl;
 
-		this.originalCanvas = document.createElement("canvas");
-		this.originalCtx = this.originalCanvas.getContext("2d");
-		this.processedImage = null;
+		this.quadBuffer = this._initFullscreenQuad();
 
-		this.viewMode = "processed" // "original" | "processed"
+		const vs = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vs, vsSource);
+        gl.compileShader(vs);
+
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fs, fsSource);
+        gl.compileShader(fs);
+
+        this.program = gl.createProgram();
+        gl.attachShader(this.program, vs);
+        gl.attachShader(this.program, fs);
+        gl.bindAttribLocation(this.program, 0, "a_pos");
+        gl.linkProgram(this.program);
+
+        this.u_image = gl.getUniformLocation(this.program, "u_image");
+        this.u_scale = gl.getUniformLocation(this.program, "u_scale");
+        this.u_offset = gl.getUniformLocation(this.program, "u_offset");
+        this.u_canvasSize = gl.getUniformLocation(this.program, "u_canvasSize");
+        this.u_imageSize = gl.getUniformLocation(this.program, "u_imageSize");
+
+		this.texture = gl.createTexture();
+	    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+		this.image = null;
 
 		// View transform
 		this.scale = 1;
@@ -25,69 +87,48 @@ export class Viewport {
 		this.initEvents();
 	}
 
-	setOriginalImage(image) {
-		this.originalCanvas.width = image.width;
-		this.originalCanvas.height = image.height;
-		this.originalCtx.clearRect(
-			0, 0, image.width, image.height
-		);
-		this.originalCtx.drawImage(image, 0, 0);
-		this.resetTransform();
-		this.draw();
-	}
+	setImage(image) {
+		if (!image) return;
+		this.image = image;
 
-	setProcessedImage(image) {
-		this.processedImage = image;
-		this.draw();
-	}
-
-	setViewMode(viewMode) {
-		this.viewMode = viewMode;
-		this.draw();
+		const gl = this.gl;
+		gl.bindTexture(gl.TEXTURE_2D, this.texture);
+	    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, this.image);
 	}
 
 	draw() {
-		const image = this.viewMode === "original" ? this.originalImage : this.processedImage;
-		if (!image) return;
+		if (!this.image) return;
 
-		this.ctx.clearRect(
-			0, 0, this.canvas.width, this.canvas.height
-		);
+		const gl = this.gl;
 
-		this.ctx.drawImage(
-			image, this.offsetX, this.offsetY, image.width * this.scale, image.height * this.scale
-		);
+	    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+	    gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+        gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+
+        gl.useProgram(this.program);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        gl.uniform1i(this.u_image, 0);
+        gl.uniform1f(this.u_scale, this.scale);
+        gl.uniform2f(this.u_offset, this.offsetX, this.offsetY);
+        gl.uniform2f(this.u_canvasSize, this.canvas.width, this.canvas.height);
+        gl.uniform2f(this.u_imageSize, this.image.width, this.image.height);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
 	}
 
 	resetTransform() {
-		const image = this.viewMode === "original" ? this.originalImage : this.processedImage;
-		if (!image) return;
+		if (!this.image) return;
 
 		this.scale = Math.min(
-			this.canvas.width / image.width,
-			this.canvas.height / image.height
+			this.canvas.width / this.image.width,
+			this.canvas.height / this.image.height
 		);
 
-		this.offsetX = (this.canvas.width - image.width * this.scale) / 2
-		this.offsetY = (this.canvas.height - image.height * this.scale) / 2
-	}
-
-	screenToImage(x, y) {
-		return {
-			x: (x - this.offsetX) / this.scale,
-			y: (y - this.offsetXY) / this.scale
-		}
-	}
-
-	sample(x, y, original = true) {
-		const image = original ? this.originalImage : this.processedImage;
-		if (!image) return;
-		const imgCoords = this.screenToImage(x, y);
-		const pixel = image.getImageData(
-			Math.floor(imgCoords.x), Math.floor(imgCoords.y), 1, 1
-		).data;
-
-		return ("#" + pixel.slice(0, 3).map(v => v.toString(16).padStart(2, "0")).join(""));
+		this.offsetX = (this.canvas.width - this.image.width * this.scale) / 2
+		this.offsetY = (this.canvas.height - this.image.height * this.scale) / 2
 	}
 	
     initEvents() {
@@ -99,11 +140,8 @@ export class Viewport {
             const mx = e.offsetX;
             const my = e.offsetY;
 
-            this.offsetX =
-                mx - (mx - this.offsetX) * zoom;
-
-            this.offsetY =
-                my - (my - this.offsetY) * zoom;
+            this.offsetX = mx - (mx - this.offsetX) * zoom;
+            this.offsetY = my - (my - this.offsetY) * zoom;
 
             this.scale *= zoom;
 
@@ -142,4 +180,19 @@ export class Viewport {
 		    this.draw();
 		});
     }
+
+    _initFullscreenQuad() {
+		const gl = this.gl;
+
+		const buffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+
+		gl.bufferData(
+			gl.ARRAY_BUFFER, 
+			new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+			gl.STATIC_DRAW
+		);
+
+		return buffer;
+	}
 }
