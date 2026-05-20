@@ -21,8 +21,15 @@ async function setupShaders(shadersConfig) {
         shaderpipeline.addPass(id, pass);
         if (config.ui) {
             effectsContainer.appendChild(pass.createUI(() => {
-                viewport.setImage(shaderpipeline.render());
+                const t0 = performance.now();
+                const processed = shaderpipeline.render();
+                shaderpipeline.gl.finish();
+                const t1 = performance.now();
+                viewport.setImage(processed);
                 viewport.draw();
+                const t2 = performance.now();
+                console.log("Render Time: ", t1 - t0);
+                console.log("Copy+Draw Time: ", t2 - t1);
             }))
         }
         shaders[id] = pass;
@@ -33,9 +40,10 @@ async function setupShaders(shadersConfig) {
 const shaderpipeline = new ShaderPipeline();
 const shadersConfig = {  
     rgbToOklab:      { Class: ShaderPasses.ShaderPass,               enabled: true,  path: './rgbToOklab.frag', ui: false },  
-    bilateralFilter: { Class: ShaderPasses.BilateralFilterPass,      enabled: false, path: './bilateral.frag',  ui: true },  
-    rbf:             { Class: ShaderPasses.RadialBasisFunctionPass,  enabled: true,  path: './rfb.frag',        ui: true },  
-    lumaGrain:       { Class: ShaderPasses.LumaGrainPass,            enabled: false, path: './dither.frag',     ui: true },
+    bilateralFilter: { Class: ShaderPasses.BilateralFilterPass,      enabled: false, path: './bilateral.frag',  ui: true  },  
+    colorAdjust:     { Class: ShaderPasses.ColorAdjustPass,          enabled: false, path: './colors.frag',     ui: true  },
+    rbf:             { Class: ShaderPasses.RadialBasisFunctionPass,  enabled: true,  path: './rfb.frag',        ui: true  },  
+    lumaGrain:       { Class: ShaderPasses.LumaGrainPass,            enabled: false, path: './dither.frag',     ui: true  },
     oklabToRgb:      { Class: ShaderPasses.ShaderPass,               enabled: true,  path: './oklabToRgb.frag', ui: false },  
 };
 
@@ -135,3 +143,26 @@ const palette = new Palette((colors) => {
     viewport.draw();
 });
 palette.createUI(paletteContainer, presets);
+
+
+// DEBUG: AutoLoad Debug Image
+/*
+async function importImageFromUrl(url) {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+
+    canvas.getContext("2d").drawImage(img, 0, 0);
+
+    return canvas;
+}
+const img = await importImageFromUrl('./debug.jpeg');
+shaderpipeline.setImage(img);
+viewport.setImage(shaderpipeline.render());
+viewport.resetTransform();
+viewport.draw();
+*/

@@ -81,7 +81,7 @@ export class ShaderPass {
     static createControlSlider({
         label,
         defaultValue = 50, 
-        transform = () => {},
+        transform = v => v,
         onInput = () => {}, 
         format = v => {
             if (v >= 10) return v.toFixed(0);
@@ -327,6 +327,83 @@ export class LumaGrainPass extends ShaderPass {
         );
 
         return super.createUI({title: "Luma Grain", passControls: controls, 
+            onToggle: enabled => {
+                this.enabled = enabled;
+                onChange();
+            }
+        });
+    }
+}
+
+export class ColorAdjustPass extends ShaderPass {
+    constructor(enabled) {
+        super(enabled);
+        this.contrast = 50;
+        this.saturation = 50;
+        this.shadows = 50;
+        this.highlights = 50;
+    }
+
+    initProgram(gl, vs, fragmentSource) {
+        super.initProgram(gl, vs, fragmentSource);
+        this.u_contrast = gl.getUniformLocation(this.program, "u_contrast");
+        this.u_saturation = gl.getUniformLocation(this.program, "u_saturation");
+        this.u_shadows = gl.getUniformLocation(this.program, "u_shadows");
+        this.u_highlights = gl.getUniformLocation(this.program, "u_highlights");
+    }
+
+    bind(inputTexture) {
+        super.bind(inputTexture);
+        this.gl.uniform1f(this.u_contrast, this.contrast);
+        this.gl.uniform1f(this.u_saturation, this.saturation);
+        this.gl.uniform1f(this.u_shadows, this.shadows);
+        this.gl.uniform1f(this.u_highlights, this.highlights);
+    }
+
+    createUI(onChange) {
+        const controls = document.createElement("div");
+
+        controls.appendChild(
+            ShaderPass.createControlSlider({ label: "Contrast", defaultValue: 50, 
+                transform: v => { return (v - 50) / 50; },
+                onInput: v => {
+                    this.contrast = v;
+                    onChange();
+                }
+            })
+        );
+
+        controls.appendChild(
+            ShaderPass.createControlSlider({ label: "Saturation", defaultValue: 50, 
+                transform: v => { return (v - 50) / 50; },
+                onInput: v => {
+                    this.saturation = v;
+                    onChange();
+                }
+            })
+        );
+
+        controls.appendChild(
+            ShaderPass.createControlSlider({ label: "Shadows", defaultValue: 50, 
+                transform: v => { return (v - 50) / 50; },
+                onInput: v => {
+                    this.shadows = v;
+                    onChange();
+                }
+            })
+        );
+
+        controls.appendChild(
+            ShaderPass.createControlSlider({ label: "Highlights", defaultValue: 50, 
+                transform: v => { return (v - 50) / 50; },
+                onInput: v => {
+                    this.highlights = v;
+                    onChange();
+                }
+            })
+        );
+
+        return super.createUI({title: "Color Adjustments", passControls: controls, 
             onToggle: enabled => {
                 this.enabled = enabled;
                 onChange();
