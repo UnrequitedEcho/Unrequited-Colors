@@ -22,6 +22,7 @@ export class Palette {
                 ? { color: color, disabled: false }
                 : { color: color.color, disabled: !!color.disabled }
         this.preset = null;
+        this.presetSelect.value = "custom";
         this.renderPalette();
         this.emit();
     }
@@ -36,6 +37,8 @@ export class Palette {
     removeColor(index) {
         this.colors.splice(index, 1);
         this.renderPalette();
+        this.presetSelect.value = "custom";
+        this.preset = null;
         this.emit();
     }
 
@@ -49,10 +52,7 @@ export class Palette {
         if (this.onChange) this.onChange(this.getActiveColors());
     }
 
-    createUI(root, presets) {
-        this.root = root;
-        this.presets = presets;
-        
+    createUI(root, presets) {        
         const openPaletteBtn = document.createElement("button");
         root.appendChild(openPaletteBtn);
 
@@ -65,9 +65,9 @@ export class Palette {
 
         // Load custom palette from file button
         openPaletteBtn.textContent = "Load Custom Palette from File";
-        openPaletteBtn.onclick = () => { 
-            const colors = this.readCustomPaletteFile() 
-            if (!colors.length) {
+        openPaletteBtn.onclick = async () => { 
+            const colors = await this.readCustomPaletteFile() 
+            if (!colors) {
                 alert("No valid colors found.");
                 return;
             }
@@ -106,46 +106,58 @@ export class Palette {
         this.renderPalette();
     }
 
-    readCustomPaletteFile() {  
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.multiple = false;
-        input.hidden = true;
+    readCustomPaletteFile() {
+        return new Promise((resolve, reject) => {
+            const input = document.createElement("input");
 
-        input.addEventListener('change', () => {
-            const file = input.files && input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
+            input.type = "file";
+            input.hidden = true;
 
-            reader.onload = () => {
-                const text = reader.result;
-                const matches = text.match(/[0-9a-fA-F]{6}/g) || [];
-                const seen = new Set();
-                const colors = [];
+            input.onchange = (e) => {
+                const file = e.target.files[0];
 
-                for (const hex of matches) {
-                    const color = "#" + hex.toLowerCase();
-
-                    if (!seen.has(color)) {
-                        seen.add(color);
-                        colors.push(color);
-
-                        if (colors.length === 32) break;
-                    }
+                if (!file) {
+                    input.remove();
+                    resolve([]);
+                    return;
                 }
 
-                input.remove();
-                return colors;
-            };
-            reader.onerror = () => {
-                console.error('read error', reader.error);
-                input.remove();
-            };
-            reader.readAsText(file);
-        });
+                const reader = new FileReader();
 
-        input.click();
-        return [];
+                reader.onload = () => {
+                    const text = reader.result;
+
+                    const matches =
+                        text.match(/[0-9a-fA-F]{6}/g) || [];
+
+                    const seen = new Set();
+                    const colors = [];
+
+                    for (const hex of matches) {
+                        const color = "#" + hex.toLowerCase();
+
+                        if (!seen.has(color)) {
+                            seen.add(color);
+                            colors.push(color);
+
+                            if (colors.length === 32) break;
+                        }
+                    }
+
+                    input.remove();
+                    resolve(colors);
+                };
+
+                reader.onerror = () => {
+                    input.remove();
+                    reject(reader.error);
+                };
+
+                reader.readAsText(file);
+            };
+
+            input.click();
+        });
     }
 
     renderPalette() {

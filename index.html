@@ -11,7 +11,7 @@
 <body>
 
     <!-- LEFT -->
-    <div id="controls">
+    <div id="control-pane">
 
         <h1>Unrequited Colors</h1>
         <div class="hints">
@@ -38,33 +38,35 @@
 
         <hr>
 
-        <!-- Controls -->
-        <div id="effects">
+        <!-- Effects -->
+        <div>
             <div class="sectionHeader">
                 <h2>Effects</h2>
-
                 <label class="switch">
-                    <input type="checkbox" id="showProcessed" checked>
+                    <input type="checkbox" id="global-effects-toggle" checked>
                     <span class="switch-slider"></span>
                 </label>
             </div>
-            <div id="shaderControls"></div>
+            <div id="effects"></div>
         </div>
 
         <hr>
 
         <!-- Palette -->
-        <h2>Palette</h2>
-        <div id="palette"></div>
+        <div>
+            <div class="sectionHeader">
+                <h2>Palette</h2>
+            </div>
+            <div id="palette"></div>
+        </div>
 
     </div>
 
     <!-- RIGHT -->
     <div id="preview">
-        <canvas id="canvas"></canvas>
+        <canvas id="preview-canvas"></canvas>
     </div>
 
-    <input id="imageInput" type="file" accept="image/*" style="display:none;">
     <script type="module" src="main.js"></script> 
 
 </body>

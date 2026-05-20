@@ -137,5 +137,14 @@ export class Viewport {
 
             this.draw();
         });
+
+        window.addEventListener("resize", () => {
+        	console.log("resize");
+		    this.canvas.width = this.canvas.clientWidth;
+		    this.canvas.height = this.canvas.clientHeight;
+
+		    this.resetTransform();
+		    this.draw();
+		});
     }
 }

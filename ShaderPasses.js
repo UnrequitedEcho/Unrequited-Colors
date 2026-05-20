@@ -1,5 +1,3 @@
-import { createPassContainer, createSlider } from "./UI_Elements.js";
-
 export class ShaderPass {
     constructor(enabled) {
         this.enabled = enabled;
@@ -37,12 +35,112 @@ export class ShaderPass {
 
         gl.uniform1i(this.u_image, 0);
     }
+
+    createUI({title, passControls, onToggle}) {
+        const root = document.createElement("div");
+        root.className = "pass";
+
+        // Title Row
+        const titleRow = document.createElement("div");
+        titleRow.className = "pass-title-row";
+
+        const label = document.createElement("span");
+        label.textContent = title;
+        titleRow.appendChild(label);
+
+        const switchEl = document.createElement("label");
+        switchEl.className = "switch";
+        const toggle = document.createElement("input");
+        toggle.type = "checkbox";
+        toggle.className = "toggle";
+        toggle.checked = this.enabled;
+        switchEl.appendChild(toggle);
+        const slider = document.createElement("span");
+        slider.className = "switch-slider";
+        switchEl.appendChild(slider);
+        titleRow.appendChild(switchEl);
+
+        root.appendChild(titleRow);
+
+        // Toggle behavior
+        function update() {
+            root.classList.toggle("disabled", !toggle.checked);
+            onToggle(toggle.checked);
+        }
+        toggle.onchange = update;
+        update();
+        
+        if (passControls) {
+            passControls.className = "pass-controls";
+            root.appendChild(passControls);
+        }
+
+        return root;
+    }
+
+    static createControlSlider({
+        label,
+        defaultValue = 50, 
+        transform = () => {},
+        onInput = () => {}, 
+        format = v => {
+            if (v >= 10) return v.toFixed(0);
+            if (v >= 1) return v.toFixed(1);
+            return v.toFixed(2);
+        }
+    }) {
+        const sliderGroup = document.createElement("div");
+        sliderGroup.className = "slider-group";
+
+        // Header Row: label and value
+        const headerRow = document.createElement("div");
+        headerRow.className = "slider-headerRow";
+        const labelEl = document.createElement("label");
+        labelEl.textContent = label;
+        headerRow.appendChild(labelEl);
+        const valueEl = document.createElement("span");
+        headerRow.appendChild(valueEl);
+
+        // SliderRow: slider resetbtn
+        const sliderRow = document.createElement("div");
+        sliderRow.className = "slider-sliderRow";
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.className = "slider";
+        sliderRow.appendChild(slider);
+        const resetBtn = document.createElement("button");
+        resetBtn.className = "slider-reset";
+        resetBtn.textContent = "⟲";
+        sliderRow.appendChild(resetBtn);
+
+        // Events
+        function update(v) {
+            slider.value = v;
+            const v_transformed = transform(v);
+            valueEl.textContent = format(v_transformed);
+            onInput(v_transformed);
+        }
+
+        slider.oninput = () => {
+            update(slider.value);
+        };
+
+        resetBtn.onclick = () => {
+            update(defaultValue);
+        };
+
+        update(defaultValue);
+
+        sliderGroup.appendChild(headerRow);
+        sliderGroup.appendChild(sliderRow);
+        return sliderGroup;
+    }
 }
 
 export class RadialBasisFunctionPass extends ShaderPass {
     constructor(enabled) {
         super(enabled);
-        this.sigma = 0.35 * 0.35;
+        this.sigma = 0;
         this.palette = [];
         this.paletteSize = 0;
         this.chromaBias = 0;
@@ -68,30 +166,34 @@ export class RadialBasisFunctionPass extends ShaderPass {
         const controls = document.createElement("div");
 
         controls.appendChild(
-            createSlider({ label: "Color Mix", min: 0.1, max: 0.6, value: 0.35,
-
+            ShaderPass.createControlSlider({ 
+                label: "Color Mix",
+                transform: v => {
+                    const min = 0.01; const max = 0.5; const power = 2;
+                    return min + (max - min) * Math.pow((v / 100), power);
+                },
                 onInput: v => {
-                    this.sigma = v * v;
+                    this.sigma = v;
                     onChange();
                 }
             })
         );
 
         controls.appendChild(
-            createSlider({ label: "Prefer Colors", min: 0, max: 10, value: this.chromaBias,
-
+            ShaderPass.createControlSlider({ 
+                label: "More Colors", defaultValue: 0,
+                transform: v => {
+                    const min = 0; const max = 25; const power = 2;
+                    return min + (max - min) * Math.pow((v / 100), power);
+                },
                 onInput: v => {
-                    this.chromaBias = v * v;
+                    this.chromaBias = v;
                     onChange();
                 }
             })
         );
 
-        return createPassContainer({
-            title: "Palettization",
-            enabled: this.enabled,
-            content: controls,
-
+        return super.createUI({title: "Palettize", passControls: controls, 
             onToggle: enabled => {
                 this.enabled = enabled;
                 onChange();
@@ -143,7 +245,7 @@ export class RadialBasisFunctionPass extends ShaderPass {
 export class BilateralFilterPass extends ShaderPass {
     constructor(enabled) {
         super(enabled);
-        this.sigmaColor = 0.15 * 0.15;
+        this.sigmaColor = 0;
         this.resolution = [0, 0];
     }
 
@@ -169,21 +271,20 @@ export class BilateralFilterPass extends ShaderPass {
         const controls = document.createElement("div");
 
         controls.appendChild(
-            createSlider({
-                label: "Radius", min: 0.1, max: 0.5, step: 0.01, value: 0.15,
-
+            ShaderPass.createControlSlider({ 
+                label: "Strength", defaultValue: 8,
+                transform: v => {
+                    const min = 0.01; const max = 0.25; const power = 2;
+                    return min + (max - min) * Math.pow((v / 100), power);
+                },
                 onInput: v => {
-                    this.sigmaColor = v * v;
+                    this.sigmaColor = v;
                     onChange();
                 }
             })
         );
 
-        return createPassContainer({
-            title: "Smart Blur",
-            enabled: this.enabled,
-            content: controls,
-
+        return super.createUI({title: "Smart Blur", passControls: controls, 
             onToggle: enabled => {
                 this.enabled = enabled;
                 onChange();
@@ -192,7 +293,7 @@ export class BilateralFilterPass extends ShaderPass {
     }
 }
 
-export class DitherPass extends ShaderPass {
+export class LumaGrainPass extends ShaderPass {
     constructor(enabled) {
         super(enabled);
         this.granularity = 1;
@@ -212,21 +313,19 @@ export class DitherPass extends ShaderPass {
         const controls = document.createElement("div");
 
         controls.appendChild(
-            createSlider({
-                label: "Strength", min: 0, max: 4, value: this.granularity,
-
+            ShaderPass.createControlSlider({ label: "Strength", defaultValue: 10, 
+                transform: v => {
+                    const min = 0; const max = 15; const power = 2;
+                    return min + (max - min) * Math.pow((v / 100), power);
+                },
                 onInput: v => {
-                    this.granularity = v * v;
+                    this.granularity = v;
                     onChange();
                 }
             })
         );
 
-        return createPassContainer({
-            title: "Anti-Banding",
-            enabled: this.enabled,
-            content: controls,
-
+        return super.createUI({title: "Luma Grain", passControls: controls, 
             onToggle: enabled => {
                 this.enabled = enabled;
                 onChange();

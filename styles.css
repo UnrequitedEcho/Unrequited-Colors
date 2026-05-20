@@ -8,7 +8,7 @@ body {
 }
 
 /* LEFT PANEL */
-#controls {
+#control-pane {
     width: 300px;
     height: 100vh; 
     padding: 14px;
@@ -30,7 +30,6 @@ h1 {
 h2 {
     font-size: 14px;
     margin: 0;
-    opacity: 0.9;
 }
 
 .hints {
@@ -57,12 +56,6 @@ hr {
     border: none;
     border-top: 1px solid #444;
     margin: 8px 0;
-}
-
-/* BUTTONS */
-.button-row {
-    display: flex;
-    gap: 8px;
 }
 
 button {
@@ -166,23 +159,23 @@ select {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 10px;
+}
+
+.button-row {
+    display: flex;
+    gap: 8px;
 }
 
 #effects {
     display: flex;
     flex-direction: column;
     gap: 10px;
-}
 
-#shaderControls {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-#shaderControls.disabled {
-    opacity: 0.5;
-    pointer-events: none;
+    &.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
 }
 
 /* PASS */
@@ -193,67 +186,57 @@ select {
     padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-}
 
-.pass.disabled {
-    opacity: 0.5;
-}
-
-.pass-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.pass-title {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-}
-
-.pass-body {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.slider-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    .slider-headerRow {
+    .pass-title-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        font-size: 12px;
+    }
 
-        label, .slider-value {
+    .slider-group {
+        display: flex;
+        flex-direction: column;
+        margin-top: 10px;
+        gap: 4px;
+
+
+        .slider-headerRow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             font-size: 11px;
-            opacity: 0.8;
+        }
+
+        .slider-sliderRow {
+            display:flex;
+            align-items: center;
+            gap: 10px;
+
+            .slider {
+                flex: 1 1 auto;
+                margin: 0;
+            }
+
+            .slider-reset {
+                width: 22px;
+                height: 22px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 4px;
+            }
         }
     }
 
-    .slider-sliderRow {
-        display:flex;
-        align-items: center;
-        gap: 10px;
-
-        .slider {
-            flex: 1 1 auto;
-            margin: 0;
-        }
-
-        .slider-reset {
-            width: 22px;
-            height: 22px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-        }
+    &.disabled {    
+        .slider-group { 
+            display: none; 
+        }  
     }
 }
+
+
 
 /* PALETTE */
 #palette {
