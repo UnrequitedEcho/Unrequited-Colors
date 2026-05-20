@@ -5,8 +5,6 @@ export class Viewport {
 
 		this.originalCanvas = document.createElement("canvas");
 		this.originalCtx = this.originalCanvas.getContext("2d");
-
-		this.originalImage = null;
 		this.processedImage = null;
 
 		this.viewMode = "processed" // "original" | "processed"
@@ -28,11 +26,8 @@ export class Viewport {
 	}
 
 	setOriginalImage(image) {
-		this.originalImage = image;
-
 		this.originalCanvas.width = image.width;
 		this.originalCanvas.height = image.height;
-
 		this.originalCtx.clearRect(
 			0, 0, image.width, image.height
 		);

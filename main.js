@@ -56,6 +56,28 @@ globalEffectsToggle.onchange = () => {
 // -----------------------------------------------------------------
 // Button Row
 // -----------------------------------------------------------------
+async function importImage(file) {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    await img.decode();
+
+    const maxTextureSize = shaderpipeline.gl.getParameter(shaderpipeline.gl.MAX_TEXTURE_SIZE);
+    const canvas = document.createElement("canvas");;
+    let scale = 1;
+
+    if (img.width > maxTextureSize || img.height > maxTextureSize) {
+        scale = Math.min(maxTextureSize / img.width, maxTextureSize / img.height, 1);
+        alert(`Image scaled to ${scale * 100}% to fit GPU limits: ${maxTextureSize}px`);
+    } 
+
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(img.src);
+    return canvas;
+}
+
 const openImageBtn = document.getElementById("openImage");
 openImageBtn.onclick = () => {
     const input = document.createElement("input");
@@ -63,22 +85,17 @@ openImageBtn.onclick = () => {
     input.type = "file";
     input.accept = "image/*";
 
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        const img = new Image();
+        const img = await importImage(file);
 
-        img.onload = () => {
-            shaderpipeline.setImage(img);
-            viewport.setOriginalImage(img);
-            viewport.setProcessedImage(shaderpipeline.render());
-            viewport.resetTransform();
-            viewport.draw();
-            URL.revokeObjectURL(img.src);
-        };
-
-        img.src = URL.createObjectURL(file);
+        shaderpipeline.setImage(img);
+        viewport.setOriginalImage(img);
+        viewport.setProcessedImage(shaderpipeline.render());
+        viewport.resetTransform();
+        viewport.draw();
     };
 
     input.click();
