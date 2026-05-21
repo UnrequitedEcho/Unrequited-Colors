@@ -8,9 +8,11 @@ Highlights  compress bright L + expand tonal range as strength increases */
 varying vec2 v_uv;
 uniform sampler2D u_image;
 uniform float u_contrast; // expected -1 -> 1
-uniform float u_saturation; // expected -1 -> 1
+uniform float u_saturation;
 uniform float u_shadows; 
 uniform float u_highlights;
+
+#define EPS 1e-6
 
 vec3 contrast(vec3 c) {
     vec3 d = vec3(0.);
@@ -31,9 +33,9 @@ vec3 contrast(vec3 c) {
 vec3 saturation(vec3 c) {
     vec3 d = vec3(0.);
 
-    float sat_scale = exp(0.8 * u_saturation);
+    float sat_scale = exp(u_saturation);
 
-    // Vibrance weight: Strong for muted colors, weak for saturated colors
+    // Vibrance weight: Strong for desaturated colors, weak for saturated colors
     float chroma = length(c.yz);
     float vib = exp(-3.0 * chroma);
     float t = (u_saturation + 1.) * 0.5; // Blend between vibrance and true saturation
@@ -67,12 +69,14 @@ vec3 highlights(vec3 c) {
 
 void main() {
     vec3 c = texture2D(u_image, v_uv).xyz;
-    if (u_contrast != 0.) c += contrast(c);
-    if (u_saturation != 0.) c += saturation(c);
-    if (u_shadows != 0.) c += shadows(c);
-    if (u_highlights != 0.) c += highlights(c);
+    vec3 cc = c;
+    if (abs(u_contrast) > EPS) c += contrast(cc);
+    if (abs(u_saturation) > EPS) c += saturation(cc);
+    if (abs(u_shadows)    > EPS) c += shadows(cc);
+    if (abs(u_highlights)  > EPS) c += highlights(cc);
+
+    c.x = clamp(c.x, 0.0, 1.0);
 
     gl_FragColor = vec4(c, 1.);
 }
-
 

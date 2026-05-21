@@ -104,8 +104,6 @@ export class Viewport {
 
 		const gl = this.gl;
 
-		console.log(this.imageWidth, this.imageHeight);
-
 	    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
 	    gl.enableVertexAttribArray(0);
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
@@ -121,7 +119,6 @@ export class Viewport {
         gl.uniform2f(this.u_imageSize, this.imageWidth, this.imageHeight);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
-
 	}
 
 	resetTransform(width = null, height = null) {
