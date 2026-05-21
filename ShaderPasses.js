@@ -248,12 +248,20 @@ export class BilateralFilterPass extends ShaderPass {
         super(enabled);
         this.sigmaColor = 0;
         this.resolution = [0, 0];
+        
+        this.spatialWeights = [];
+        const radius = 12;
+        const facS = -1 / (2 * radius / 2 * radius / 2);
+        for (let i = -radius; i <= radius; i++) {
+            this.spatialWeights.push(Math.exp(facS * i * i));
+        }
     }
 
     initProgram(gl, vs, fragmentSource) {
         super.initProgram(gl, vs, fragmentSource);
         this.u_sigmaColor = gl.getUniformLocation(this.program, "u_sigmaColor");
         this.u_resolution = gl.getUniformLocation(this.program, "u_resolution");
+        this.u_spatialWeights = gl.getUniformLocation(this.program, "u_spatialWeights");
     }
 
     bind(inputTexture) {
@@ -262,6 +270,7 @@ export class BilateralFilterPass extends ShaderPass {
         this.gl.uniform1f(this.u_sigmaSpatial, this.sigmaSpatial);
         this.gl.uniform1f(this.u_sigmaColor, this.sigmaColor);
         this.gl.uniform2fv(this.u_resolution, this.resolution);
+        this.gl.uniform1fv(this.u_spatialWeights, this.spatialWeights);
     }
 
     setSize(width, height) {
