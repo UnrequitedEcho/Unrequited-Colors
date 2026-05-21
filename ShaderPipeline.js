@@ -1,5 +1,82 @@
+import { OutputPass } from './ShaderPasses.js';
+
+export class Renderer {
+    constructor(lowResSize = 1000, onImageReady) {
+        this.fullResPipeline = new ShaderPipeline(OutputPass);
+		this.lowResPipeline =  new ShaderPipeline(OutputPass, lowResSize);
+
+		this.onImageReady = onImageReady;
+
+		this.hasImage = false;
+        this.fullResTimeout = null;
+        this.renderVersion = 0;
+
+        this.currentCanvas = null;
+    }
+
+    render() {
+    	if (!this.hasImage) return;
+        const version = ++this.renderVersion;
+        // immediate preview
+        this.currentCanvas = this.lowResPipeline.render();
+        this.onImageReady(
+        	this.currentCanvas, 
+        	this.fullResPipeline.canvas.width, 
+        	this.fullResPipeline.canvas.height
+        );
+
+        // debounce expensive render
+        clearTimeout(this.fullResTimeout);
+
+        this.fullTimeout = setTimeout(() => {
+            // stale render protection
+            if (version !== this.renderVersion) return;
+
+            const result = this.fullResPipeline.render();
+
+            // another stale check
+            if (version !== this.renderVersion) return;
+
+            this.currentCanvas = result;
+            this.onImageReady(this.currentCanvas, this.currentCanvas.width, this.currentCanvas.height);
+
+        }, 500);
+    }
+
+    export() {
+    	if (!this.hasImage) return;
+    	return this.fullResPipeline.render();
+    }
+
+    addPass(name, effect, fsSource) {
+    	for (const pipeline of [this.fullResPipeline, this.lowResPipeline]) {
+    		pipeline.passes.push({
+	    		name: name, 
+	    		pass: effect.createPass(pipeline.gl, pipeline.vs, fsSource)
+	    	});
+    	}
+    }
+
+    setImage(image) {
+    	this.fullResPipeline.setImage(image);
+		this.lowResPipeline.setImage(image);
+		this.hasImage = true;
+    }
+
+    setGlobalEffectsStatus(status) {
+    	this.fullResPipeline.skipAllPasses = status;
+    	this.lowResPipeline.skipAllPasses = status;
+    	this.render();
+    }
+
+    getMaxTextureSize() {
+    	const gl = this.fullResPipeline.gl;
+    	return gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    }
+}
+
 export class ShaderPipeline {
-	constructor() {
+	constructor(OutputPassObject, maxSize = null) {
 		this.canvas = document.createElement("canvas");
 		this.gl = this.canvas.getContext("webgl");
 		if (!this.gl) { throw new Error("WebGL not supported"); }
@@ -31,7 +108,6 @@ export class ShaderPipeline {
         `);
         gl.compileShader(this.vs);
 
-        this.hasImage = false;
         this.texture = gl.createTexture();
 	    gl.bindTexture(gl.TEXTURE_2D, this.texture);
 	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -42,24 +118,32 @@ export class ShaderPipeline {
 
         // shaderpasses
         this.passes = [];
-		this.outputPass = new OutputPass();
-		this.outputPass.initProgram(gl, this.vs);
+		this.outputPass = new OutputPassObject(this.gl, this.vs);
 
 		this.skipAllPasses = false;
+		this.maxSize = maxSize;
 	}
 
 	addPass(name, pass) {
 		this.passes.push({ name: name, pass: pass});
 	}
 
-	removePass(name) {
-		this.passes = this.passes.filter(p => p.name !== name);
-	}
-
 	setImage(image) {
 		const gl = this.gl;
 
-		// resize the buffers
+		// resize the image
+		if (this.maxSize) { 
+			const scale = Math.min(1, this.maxSize / Math.max(image.width, image.height));
+
+			const resized = document.createElement("canvas");
+			const ctx = resized.getContext("2d");
+			resized.width = Math.round(image.width * scale);
+			resized.height = Math.round(image.height * scale);
+			ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, resized.width, resized.height);
+			image = resized;
+		}
+
+		// resize the buffers to the image
 		this.canvas.width = image.width;
 		this.canvas.height = image.height;
 
@@ -72,13 +156,9 @@ export class ShaderPipeline {
 	    		0, gl.RGBA, gl.FLOAT, null
 			);
 		}
-
-		this.hasImage = true;
 	}
 
 	render() {
-		if (!this.hasImage) { return null; }
-
 		const gl = this.gl;
 		
 		let currentTexture = this.texture;
@@ -90,16 +170,10 @@ export class ShaderPipeline {
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
 		for (const { pass } of this.passes) {
-			if (!pass.enabled || this.skipAllPasses) continue; 
+			if (!pass.effect.enabled || this.skipAllPasses) continue; 
 			if (pass.setSize) pass.setSize(this.canvas.width, this.canvas.height);
 
 			gl.bindFramebuffer(gl.FRAMEBUFFER, write.framebuffer);
-
-			const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-			if (status !== gl.FRAMEBUFFER_COMPLETE) {
-			    console.error("Framebuffer incomplete:", status);
-			}
-
 			gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 			pass.bind(currentTexture);
 			gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -147,43 +221,3 @@ export class ShaderPipeline {
 	}
 }
 
-export class OutputPass {
-    initProgram(gl, vs) {
-        this.gl = gl;
-        // Fragment Shader
-        const fs = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fs, `
-			precision highp float;
-			varying vec2 v_uv;
-			uniform sampler2D u_image;
-			void main() {
-			    gl_FragColor = texture2D(u_image, v_uv);
-			}
-		`
-        );
-        gl.compileShader(fs);
-
-        // GL program
-        this.program = gl.createProgram();
-        gl.attachShader(this.program, vs);
-        gl.attachShader(this.program, fs);
-        gl.bindAttribLocation(this.program, 0, "a_pos");
-        gl.linkProgram(this.program);
-        if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
-		    console.error(gl.getProgramInfoLog(this.program));
-		}
-
-        // Uniform locations
-        this.u_image = gl.getUniformLocation(this.program, "u_image");
-    }
-
-    bind(inputTexture) {
-        const gl = this.gl;
-        gl.useProgram(this.program);
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, inputTexture);
-
-        gl.uniform1i(this.u_image, 0);
-    }
-}

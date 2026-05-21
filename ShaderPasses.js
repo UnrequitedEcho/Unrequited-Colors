@@ -1,42 +1,24 @@
-export class ShaderPass {
+export class Effect {
     constructor(enabled) {
         this.enabled = enabled;
     }
 
-    initProgram(gl, vs, fragmentSource) {
-        this.gl = gl;
+    createPass(gl, vs, fs, ShaderPassObject = ShaderPass) {
+        return new ShaderPassObject(this, gl, vs, fs);
+    }
+}
 
-        const fs = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fs, fragmentSource);
-        gl.compileShader(fs);
-        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
-            console.error(gl.getShaderInfoLog(fs));
-        }
-
-        this.program = gl.createProgram();
-        gl.attachShader(this.program, vs);
-        gl.attachShader(this.program, fs);
-        gl.bindAttribLocation(this.program, 0, "a_pos");
-        gl.linkProgram(this.program);
-        if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
-            console.error(gl.getProgramInfoLog(this.program));
-        }
-
-        this.u_image = gl.getUniformLocation(this.program, "u_image");
+export class EffectWithUI extends Effect {
+    constructor(enabled, onChange) {
+        super(enabled);
+        this.onChange = onChange;
     }
 
-    bind(inputTexture) {
-        const gl = this.gl;
-
-        gl.useProgram(this.program);
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, inputTexture);
-
-        gl.uniform1i(this.u_image, 0);
+    createPass(gl, vs, fs, ShaderPassObject = ShaderPass) {
+        return super.createPass(gl, vs, fs, ShaderPassObject);
     }
 
-    createUI({title, passControls, onToggle}) {
+    makeUI(container, title="Default") {
         const root = document.createElement("div");
         root.className = "pass";
 
@@ -63,22 +45,25 @@ export class ShaderPass {
         root.appendChild(titleRow);
 
         // Toggle behavior
-        function update() {
+        const update = () => {
             root.classList.toggle("disabled", !toggle.checked);
-            onToggle(toggle.checked);
+            this.enabled = toggle.checked;
+            this.onChange();
         }
         toggle.onchange = update;
         update();
         
-        if (passControls) {
-            passControls.className = "pass-controls";
-            root.appendChild(passControls);
+        if (this.makeControls) {
+            const controls = document.createElement("div");
+            controls.className = "pass-controls";
+            this.makeControls(controls);
+            root.appendChild(controls);
         }
 
-        return root;
+        container.appendChild(root);
     }
 
-    static createControlSlider({
+    static makeControlSlider({
         label,
         defaultValue = 50, 
         transform = v => v,
@@ -117,17 +102,12 @@ export class ShaderPass {
         slider.oninput = () => {
             const value = transform(slider.value);
             valueEl.textContent = format(value);
-        }
-
-        slider.onchange = () => {
-            const value = transform(slider.value);
             onInput(value);
-        };
+        }
 
         resetBtn.onclick = () => {
             slider.value = defaultValue;
             slider.oninput();
-            slider.onchange();
         };
 
         resetBtn.click();
@@ -138,17 +118,36 @@ export class ShaderPass {
     }
 }
 
-export class RadialBasisFunctionPass extends ShaderPass {
-    constructor(enabled) {
-        super(enabled);
-        this.sigma = 0;
-        this.palette = [];
-        this.paletteSize = 0;
-        this.chromaBias = 0;
+class ShaderPass {
+    constructor(effect, gl, vs, fsSource) {
+        this.gl = gl;
+        this.effect = effect;
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fs, fsSource);
+        gl.compileShader(fs);
+
+        this.program = gl.createProgram();
+        this.gl.attachShader(this.program, vs);
+        this.gl.attachShader(this.program, fs);
+        gl.bindAttribLocation(this.program, 0, "a_pos");
+        gl.linkProgram(this.program);
+
+        this.u_image = gl.getUniformLocation(this.program, "u_image");
     }
 
-    initProgram(gl, vs, fragmentSource) {
-        super.initProgram(gl, vs, fragmentSource);
+    bind(inputTexture) {
+        const gl = this.gl;
+
+        gl.useProgram(this.program);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+        gl.uniform1i(this.u_image, 0);
+    }
+}
+
+class RadialBasisFunctionPass extends ShaderPass {
+    constructor(effect, gl, vs, fsSource) {
+        super(effect, gl, vs, fsSource);
         this.u_palette = gl.getUniformLocation(this.program, "u_palette");
         this.u_paletteSize = gl.getUniformLocation(this.program, "u_paletteSize");
         this.u_sigma = gl.getUniformLocation(this.program, "u_sigma");
@@ -157,17 +156,33 @@ export class RadialBasisFunctionPass extends ShaderPass {
 
     bind(inputTexture) {
         super.bind(inputTexture);
-        this.gl.uniform3fv(this.u_palette, this.palette);
-        this.gl.uniform1i(this.u_paletteSize, this.paletteSize);
-        this.gl.uniform1f(this.u_sigma, this.sigma);
-        this.gl.uniform1f(this.u_chromaBias, this.chromaBias);
+        this.gl.uniform3fv(this.u_palette, this.effect.palette);
+        this.gl.uniform1i(this.u_paletteSize, this.effect.paletteSize);
+        this.gl.uniform1f(this.u_sigma, this.effect.sigma);
+        this.gl.uniform1f(this.u_chromaBias, this.effect.chromaBias);
+    }
+}
+
+export class RadialBasisFunctionEffect extends EffectWithUI {
+    constructor(enabled, onChange) {
+        super(enabled, onChange);
+        this.sigma = 0;
+        this.palette = [];
+        this.paletteSize = 0;
+        this.chromaBias = 0;
     }
 
-    createUI(onChange) {
-        const controls = document.createElement("div");
+    createPass(gl, vs, fsSource) {
+        return super.createPass(gl, vs, fsSource, RadialBasisFunctionPass);
+    }
 
+    makeUI(container) {
+        super.makeUI(container, "Palettize");
+    }
+
+    makeControls(controls) {
         controls.appendChild(
-            ShaderPass.createControlSlider({ 
+            EffectWithUI.makeControlSlider({
                 label: "Color Mix",
                 transform: v => {
                     const min = 0.01; const max = 0.5; const power = 2;
@@ -175,31 +190,25 @@ export class RadialBasisFunctionPass extends ShaderPass {
                 },
                 onInput: v => {
                     this.sigma = v;
-                    onChange();
+                    this.onChange();
                 }
             })
         );
 
         controls.appendChild(
-            ShaderPass.createControlSlider({ 
-                label: "More Colors", defaultValue: 0,
+            EffectWithUI.makeControlSlider({
+                label: "More Colors", 
+                defaultValue: 0,
                 transform: v => {
                     const min = 0; const max = 25; const power = 2;
                     return min + (max - min) * Math.pow((v / 100), power);
                 },
                 onInput: v => {
                     this.chromaBias = v;
-                    onChange();
+                    this.onChange();
                 }
             })
         );
-
-        return super.createUI({title: "Palettize", passControls: controls, 
-            onToggle: enabled => {
-                this.enabled = enabled;
-                onChange();
-            }
-        });
     }
 
     setPalette(palette) {
@@ -211,6 +220,8 @@ export class RadialBasisFunctionPass extends ShaderPass {
             this.palette[i * 3 + 1] = a;
             this.palette[i * 3 + 2] = b;
         }
+
+        this.onChange();
     }
 
     _hexToOkLab(hex) {
@@ -243,12 +254,13 @@ export class RadialBasisFunctionPass extends ShaderPass {
     }
 }
 
-export class BilateralFilterPass extends ShaderPass {
-    constructor(enabled) {
-        super(enabled);
-        this.sigmaColor = 0;
-        this.resolution = [0, 0];
-        
+class BilateralFilterPass extends ShaderPass {
+    constructor(effect, gl, vs, fsSource) {
+        super(effect, gl, vs, fsSource);
+        this.u_sigmaColor = gl.getUniformLocation(this.program, "u_sigmaColor");
+        this.u_resolution = gl.getUniformLocation(this.program, "u_resolution");
+        this.u_spatialWeights = gl.getUniformLocation(this.program, "u_spatialWeights");
+        this.resolution = [];
         this.spatialWeights = [];
         const radius = 12;
         const facS = -1 / (2 * radius / 2 * radius / 2);
@@ -257,104 +269,98 @@ export class BilateralFilterPass extends ShaderPass {
         }
     }
 
-    initProgram(gl, vs, fragmentSource) {
-        super.initProgram(gl, vs, fragmentSource);
-        this.u_sigmaColor = gl.getUniformLocation(this.program, "u_sigmaColor");
-        this.u_resolution = gl.getUniformLocation(this.program, "u_resolution");
-        this.u_spatialWeights = gl.getUniformLocation(this.program, "u_spatialWeights");
-    }
-
     bind(inputTexture) {
         super.bind(inputTexture);
-        
-        this.gl.uniform1f(this.u_sigmaSpatial, this.sigmaSpatial);
-        this.gl.uniform1f(this.u_sigmaColor, this.sigmaColor);
-        this.gl.uniform2fv(this.u_resolution, this.resolution);
+        this.gl.uniform1f(this.u_sigmaSpatial, this.effect.sigmaSpatial);
+        this.gl.uniform1f(this.u_sigmaColor, this.effect.sigmaColor);
         this.gl.uniform1fv(this.u_spatialWeights, this.spatialWeights);
+        this.gl.uniform2fv(this.u_resolution, this.resolution);
     }
 
     setSize(width, height) {
         this.resolution = [width, height];
     }
+}
 
-    createUI(onChange) {
-        const controls = document.createElement("div");
+export class BilateralFilterEffect extends EffectWithUI {
+    constructor(enabled, container, onChange) {
+        super(enabled, container, onChange);
+        this.sigmaColor = 0;
+    }
 
+    createPass(gl, vs, fsSource) {
+        return super.createPass(gl, vs, fsSource, BilateralFilterPass);
+    }
+
+    makeUI(container) {
+        super.makeUI(container, "Smart Blur");
+    }
+
+    makeControls(controls) {
         controls.appendChild(
-            ShaderPass.createControlSlider({ 
-                label: "Strength", defaultValue: 8,
+            EffectWithUI.makeControlSlider({ 
+                label: "Strength", 
+                defaultValue: 8,
                 transform: v => {
                     const min = 0.01; const max = 0.25; const power = 2;
                     return min + (max - min) * Math.pow((v / 100), power);
                 },
                 onInput: v => {
                     this.sigmaColor = v;
-                    onChange();
+                    this.onChange();
                 }
             })
         );
-
-        return super.createUI({title: "Smart Blur", passControls: controls, 
-            onToggle: enabled => {
-                this.enabled = enabled;
-                onChange();
-            }
-        });
     }
 }
 
-export class LumaGrainPass extends ShaderPass {
-    constructor(enabled) {
-        super(enabled);
-        this.granularity = 1;
-    }
-
-    initProgram(gl, vs, fragmentSource) {
-        super.initProgram(gl, vs, fragmentSource);
+class LumaGrainPass extends ShaderPass {
+    constructor(effect, gl, vs, fsSource) {
+        super(effect, gl, vs, fsSource);
         this.u_granularity = gl.getUniformLocation(this.program, "u_granularity");
     }
 
     bind(inputTexture) {
         super.bind(inputTexture);
-        this.gl.uniform1f(this.u_granularity, this.granularity);
+        this.gl.uniform1f(this.u_granularity, this.effect.granularity);
+    }
+}
+
+export class LumaGrainEffect extends EffectWithUI {
+    constructor(enabled, onChange) {
+        super(enabled, onChange);
+        this.granularity = 1;
     }
 
-    createUI(onChange) {
-        const controls = document.createElement("div");
+    createPass(gl, vs, fsSource) {
+        return super.createPass(gl, vs, fsSource, LumaGrainPass)
+    }
 
+    makeUI(container) {
+        super.makeUI(container, "Luma Grain");
+    }
+
+    makeControls(controls) {
         controls.appendChild(
-            ShaderPass.createControlSlider({ label: "Strength", defaultValue: 10, 
+            EffectWithUI.makeControlSlider({ 
+                label: "Strength", 
+                defaultValue: 10, 
                 transform: v => {
                     const min = 0; const max = 15; const power = 2;
                     return min + (max - min) * Math.pow((v / 100), power);
                 },
                 onInput: v => {
                     this.granularity = v;
-                    onChange();
+                    this.onChange();
                 }
             })
         );
-
-        return super.createUI({title: "Luma Grain", passControls: controls, 
-            onToggle: enabled => {
-                this.enabled = enabled;
-                onChange();
-            }
-        });
     }
 }
 
-export class ColorAdjustPass extends ShaderPass {
-    constructor(enabled) {
-        super(enabled);
-        this.contrast = 50;
-        this.saturation = 50;
-        this.shadows = 50;
-        this.highlights = 50;
-    }
-
-    initProgram(gl, vs, fragmentSource) {
-        super.initProgram(gl, vs, fragmentSource);
+class ColorAdjustPass extends ShaderPass {
+    constructor(effect, gl, vs, fsSource) {
+        super(effect, gl, vs, fsSource);
         this.u_contrast = gl.getUniformLocation(this.program, "u_contrast");
         this.u_saturation = gl.getUniformLocation(this.program, "u_saturation");
         this.u_shadows = gl.getUniformLocation(this.program, "u_shadows");
@@ -363,60 +369,91 @@ export class ColorAdjustPass extends ShaderPass {
 
     bind(inputTexture) {
         super.bind(inputTexture);
-        this.gl.uniform1f(this.u_contrast, this.contrast);
-        this.gl.uniform1f(this.u_saturation, this.saturation);
-        this.gl.uniform1f(this.u_shadows, this.shadows);
-        this.gl.uniform1f(this.u_highlights, this.highlights);
+        this.gl.uniform1f(this.u_contrast, this.effect.contrast);
+        this.gl.uniform1f(this.u_saturation, this.effect.saturation);
+        this.gl.uniform1f(this.u_shadows, this.effect.shadows);
+        this.gl.uniform1f(this.u_highlights, this.effect.highlights);
+    }
+}
+
+export class ColorAdjustEffect extends EffectWithUI {
+    constructor(enabled, onChange) {
+        super(enabled, onChange);
+        this.contrast = 50;
+        this.saturation = 50;
+        this.shadows = 50;
+        this.highlights = 50;
     }
 
-    createUI(onChange) {
-        const controls = document.createElement("div");
+    createPass(gl, vs, fsSource) {
+        return super.createPass(gl, vs, fsSource, ColorAdjustPass);
+    }
 
+    makeUI(container) {
+        super.makeUI(container, "Color Adjustments");
+    }
+
+    makeControls(controls) {
         controls.appendChild(
-            ShaderPass.createControlSlider({ label: "Contrast", defaultValue: 50, 
+            EffectWithUI.makeControlSlider({ 
+                label: "Contrast", 
                 transform: v => { return (v - 50) / 50; },
                 onInput: v => {
                     this.contrast = v;
-                    onChange();
+                    this.onChange();
                 }
             })
         );
 
         controls.appendChild(
-            ShaderPass.createControlSlider({ label: "Saturation", defaultValue: 50, 
+            EffectWithUI.makeControlSlider({ 
+                label: "Saturation", 
                 transform: v => { return (v - 50) / 50; },
                 onInput: v => {
                     this.saturation = v;
-                    onChange();
+                    this.onChange();
                 }
             })
         );
 
         controls.appendChild(
-            ShaderPass.createControlSlider({ label: "Shadows", defaultValue: 50, 
+            EffectWithUI.makeControlSlider({ 
+                label: "Shadows",
                 transform: v => { return (v - 50) / 50; },
                 onInput: v => {
                     this.shadows = v;
-                    onChange();
+                    this.onChange();
                 }
             })
         );
 
         controls.appendChild(
-            ShaderPass.createControlSlider({ label: "Highlights", defaultValue: 50, 
+            EffectWithUI.makeControlSlider({ 
+                label: "Highlights",
                 transform: v => { return (v - 50) / 50; },
                 onInput: v => {
                     this.highlights = v;
-                    onChange();
+                    this.onChange();
                 }
             })
         );
+    }
+}
 
-        return super.createUI({title: "Color Adjustments", passControls: controls, 
-            onToggle: enabled => {
-                this.enabled = enabled;
-                onChange();
+export class OutputPass extends ShaderPass {
+    constructor(gl, vs) {
+        const fsSource = `
+            precision highp float;
+            varying vec2 v_uv;
+            uniform sampler2D u_image;
+            void main() {
+                gl_FragColor = texture2D(u_image, v_uv);
             }
-        });
+        `
+        super(null, gl, vs, fsSource);
+    }
+
+    bind(inputTexture) {
+        super.bind(inputTexture);
     }
 }

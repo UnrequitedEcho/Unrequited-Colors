@@ -87,9 +87,12 @@ export class Viewport {
 		this.initEvents();
 	}
 
-	setImage(image) {
+	setImage(image, width, height) {
 		if (!image) return;
 		this.image = image;
+
+		this.imageWidth = width;
+		this.imageHeight = height;
 
 		const gl = this.gl;
 		gl.bindTexture(gl.TEXTURE_2D, this.texture);
@@ -100,6 +103,8 @@ export class Viewport {
 		if (!this.image) return;
 
 		const gl = this.gl;
+
+		console.log(this.imageWidth, this.imageHeight);
 
 	    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
 	    gl.enableVertexAttribArray(0);
@@ -113,22 +118,27 @@ export class Viewport {
         gl.uniform1f(this.u_scale, this.scale);
         gl.uniform2f(this.u_offset, this.offsetX, this.offsetY);
         gl.uniform2f(this.u_canvasSize, this.canvas.width, this.canvas.height);
-        gl.uniform2f(this.u_imageSize, this.image.width, this.image.height);
+        gl.uniform2f(this.u_imageSize, this.imageWidth, this.imageHeight);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 
 	}
 
-	resetTransform() {
-		if (!this.image) return;
+	resetTransform(width = null, height = null) {
+		if (width && height) {
+			this.imageWidth = width;
+    		this.imageHeight = height;
+		}
 
+		if (!this.imageWidth || !this.imageHeight) return;		
+		
 		this.scale = Math.min(
-			this.canvas.width / this.image.width,
-			this.canvas.height / this.image.height
+			this.canvas.width / this.imageWidth,
+			this.canvas.height / this.imageHeight
 		);
 
-		this.offsetX = (this.canvas.width - this.image.width * this.scale) / 2
-		this.offsetY = (this.canvas.height - this.image.height * this.scale) / 2
+		this.offsetX = (this.canvas.width - this.imageWidth * this.scale) / 2
+		this.offsetY = (this.canvas.height - this.imageHeight * this.scale) / 2
 	}
 	
     initEvents() {
@@ -172,7 +182,6 @@ export class Viewport {
         });
 
         window.addEventListener("resize", () => {
-        	console.log("resize");
 		    this.canvas.width = this.canvas.clientWidth;
 		    this.canvas.height = this.canvas.clientHeight;
 

@@ -1,4 +1,4 @@
-import { ShaderPipeline } from "./ShaderPipeline.js";
+import { Renderer, ShaderPipeline } from "./ShaderPipeline.js";
 import * as ShaderPasses from './ShaderPasses.js';
 import { Palette } from "./Palette.js";
 import { Viewport } from "./Viewport.js";
@@ -12,56 +12,43 @@ const viewport = new Viewport(canvas);
 // -----------------------------------------------------------------
 // Shader Pipeline
 // -----------------------------------------------------------------
-async function setupShaders(shadersConfig) {
-    let shaders = {};
-    for (const [id, config] of Object.entries(shadersConfig)) {
-        const pass = new config.Class(config.enabled);
-        const shaderSrc = await fetch(config.path).then(r => r.text());
-        pass.initProgram(shaderpipeline.gl, shaderpipeline.vs, shaderSrc);
-        shaderpipeline.addPass(id, pass);
-        if (config.ui) {
-            effectsContainer.appendChild(pass.createUI(() => {
-                const t0 = performance.now();
-                const processed = shaderpipeline.render();
-                shaderpipeline.gl.finish();
-                const t1 = performance.now();
-                viewport.setImage(processed);
-                viewport.draw();
-                const t2 = performance.now();
-                console.log("Render Time: ", t1 - t0);
-                console.log("Copy+Draw Time: ", t2 - t1);
-            }))
-        }
-        shaders[id] = pass;
-    }
-    return shaders;
-}
 
-const shaderpipeline = new ShaderPipeline();
-const shadersConfig = {  
-    rgbToOklab:      { Class: ShaderPasses.ShaderPass,               enabled: true,  path: './rgbToOklab.frag', ui: false },  
-    bilateralFilter: { Class: ShaderPasses.BilateralFilterPass,      enabled: false, path: './bilateral.frag',  ui: true  },  
-    colorAdjust:     { Class: ShaderPasses.ColorAdjustPass,          enabled: false, path: './colors.frag',     ui: true  },
-    rbf:             { Class: ShaderPasses.RadialBasisFunctionPass,  enabled: true,  path: './rfb.frag',        ui: true  },  
-    lumaGrain:       { Class: ShaderPasses.LumaGrainPass,            enabled: false, path: './dither.frag',     ui: true  },
-    oklabToRgb:      { Class: ShaderPasses.ShaderPass,               enabled: true,  path: './oklabToRgb.frag', ui: false },  
+const renderer = new Renderer(
+    1000, 
+    (image, logicalWidth, logicalHeight) => {
+        viewport.setImage(image, logicalWidth, logicalHeight);
+        viewport.draw();
+    }
+);
+
+const effectsConfig = {  
+    rgbToOklab:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './rgbToOklab.frag', },  
+    bilateralFilter: { Object: ShaderPasses.BilateralFilterEffect,      enabled: false, path: './bilateral.frag',  },  
+    colorAdjust:     { Object: ShaderPasses.ColorAdjustEffect,          enabled: false, path: './colors.frag',     },
+    rbf:             { Object: ShaderPasses.RadialBasisFunctionEffect,  enabled: true,  path: './rfb.frag',        },  
+    lumaGrain:       { Object: ShaderPasses.LumaGrainEffect,            enabled: false, path: './dither.frag',     },
+    oklabToRgb:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './oklabToRgb.frag', },  
 };
 
 const effectsContainer = document.getElementById("effects");
-const shaders = await setupShaders(shadersConfig);
+
+let effects = {}
+for (const [id, config] of Object.entries(effectsConfig)) {
+    const effect = new config.Object(config.enabled, () => { renderer.render(); });
+    if (effect.makeUI) effect.makeUI(effectsContainer);
+    const shaderSrc = await fetch(config.path).then(r => r.text());
+    renderer.addPass(id, effect, shaderSrc);
+    effects[id] = effect;
+}
 
 const globalEffectsToggle = document.getElementById("global-effects-toggle");
 globalEffectsToggle.onchange = () => {
     if (globalEffectsToggle.checked) {
         effectsContainer.classList.remove("disabled");
-        shaderpipeline.skipAllPasses = false;
-        viewport.setImage(shaderpipeline.render());
-        viewport.draw()
+        renderer.setGlobalEffectsStatus(false);
     } else {
         effectsContainer.classList.add("disabled");
-        shaderpipeline.skipAllPasses = true;
-        viewport.setImage(shaderpipeline.render());
-        viewport.draw()
+        renderer.setGlobalEffectsStatus(true);
     }
 }
 
@@ -73,7 +60,7 @@ async function importImage(file) {
     img.src = URL.createObjectURL(file);
     await img.decode();
 
-    const maxTextureSize = shaderpipeline.gl.getParameter(shaderpipeline.gl.MAX_TEXTURE_SIZE);
+    const maxTextureSize = renderer.getMaxTextureSize();
     const canvas = document.createElement("canvas");;
     let scale = 1;
 
@@ -103,8 +90,8 @@ openImageBtn.onclick = () => {
 
         const img = await importImage(file);
 
-        shaderpipeline.setImage(img);
-        viewport.setImage(shaderpipeline.render());
+        renderer.setImage(img);
+        renderer.render();
         viewport.resetTransform();
         viewport.draw();
     };
@@ -114,7 +101,7 @@ openImageBtn.onclick = () => {
 
 const saveBtn = document.getElementById("saveImage");
 saveBtn.onclick = () => {
-    const saveCanvas = shaderpipeline.render();
+    const saveCanvas = renderer.export();
     if (!saveCanvas) return;
 
     saveCanvas.toBlob(blob => {
@@ -138,31 +125,27 @@ resetBtn.onclick = () => {
 const paletteContainer = document.getElementById("palette");
 const presets = await fetch("./palettes.json").then(r => r.json());
 const palette = new Palette((colors) => {
-    shaders.rbf.setPalette(colors);
-    viewport.setImage(shaderpipeline.render());
-    viewport.draw();
+    effects.rbf.setPalette(colors);
 });
 palette.createUI(paletteContainer, presets);
 
 
 // DEBUG: AutoLoad Debug Image
-/*
-async function importImageFromUrl(url) {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
 
-    const canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
+// async function importImageFromUrl(url) {
+//     const img = new Image();
+//     img.src = url;
+//     await img.decode();
 
-    canvas.getContext("2d").drawImage(img, 0, 0);
+//     const canvas = document.createElement("canvas");
+//     canvas.width = img.width;
+//     canvas.height = img.height;
 
-    return canvas;
-}
-const img = await importImageFromUrl('./debug.jpeg');
-shaderpipeline.setImage(img);
-viewport.setImage(shaderpipeline.render());
-viewport.resetTransform();
-viewport.draw();
-*/
+//     canvas.getContext("2d").drawImage(img, 0, 0);
+
+//     return canvas;
+// }
+// const img = await importImageFromUrl('./debug.jpeg');
+// renderer.setImage(img);
+// renderer.render();
+
