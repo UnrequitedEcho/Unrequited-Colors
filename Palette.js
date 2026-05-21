@@ -91,7 +91,7 @@ export class Palette {
 
         this.presetSelect.onchange = () => {
             if (this.presetSelect.value === "custom") return;
-            const p = this.presets.find(p => p.name === this.presetSelect.value);
+            const p = presets.find(p => p.name === this.presetSelect.value);
             this.set(p.colors, { preset: p.name });
         };
 
