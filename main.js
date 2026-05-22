@@ -54,7 +54,17 @@ globalEffectsToggle.onchange = () => {
 }
 
 // -----------------------------------------------------------------
-// Button Row
+// Palette
+// -----------------------------------------------------------------
+const paletteContainer = document.getElementById("palette");
+const presets = await fetch("./palettes.json").then(r => r.json());
+const palette = new Palette((colors) => {
+    effects.rbf.setPalette(colors);
+});
+palette.createUI(paletteContainer, presets);
+
+// -----------------------------------------------------------------
+// Import Button
 // -----------------------------------------------------------------
 async function importImage(file) {
     const img = new Image();
@@ -78,6 +88,7 @@ async function importImage(file) {
     return canvas;
 }
 
+let imagename;
 const openImageBtn = document.getElementById("openImage");
 openImageBtn.onclick = () => {
     const input = document.createElement("input");
@@ -89,6 +100,7 @@ openImageBtn.onclick = () => {
         const file = e.target.files[0];
         if (!file) return;
 
+        imagename = file.name.slice(0, file.name.lastIndexOf("."));
         const img = await importImage(file);
 
         renderer.setImage(img);
@@ -100,36 +112,33 @@ openImageBtn.onclick = () => {
     input.click();
 };
 
+// -----------------------------------------------------------------
+// Save Button
+// -----------------------------------------------------------------
 const saveBtn = document.getElementById("saveImage");
 saveBtn.onclick = () => {
     const saveCanvas = renderer.export();
     if (!saveCanvas) return;
 
+    const filename = `${imagename}-${palette.preset ?? "colorized"}.png`;
+
     saveCanvas.toBlob(blob => {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "palettized.png";
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(a.href);
-    });
+    }, "image/png");
 };
 
+// -----------------------------------------------------------------
+// ResetView Button
+// -----------------------------------------------------------------
 const resetBtn = document.getElementById("resetView")
 resetBtn.onclick = () => {
     viewport.resetTransform();
     viewport.draw();
 }
-
-// -----------------------------------------------------------------
-// Palette
-// -----------------------------------------------------------------
-const paletteContainer = document.getElementById("palette");
-const presets = await fetch("./palettes.json").then(r => r.json());
-const palette = new Palette((colors) => {
-    effects.rbf.setPalette(colors);
-});
-palette.createUI(paletteContainer, presets);
-
 
 // DEBUG: AutoLoad Debug Image
 
