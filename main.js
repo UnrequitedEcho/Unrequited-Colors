@@ -34,8 +34,12 @@ const effectsContainer = document.getElementById("effects");
 
 let effects = {}
 for (const [id, config] of Object.entries(effectsConfig)) {
-    const effect = new config.Object(config.enabled, () => { renderer.render(); });
-    if (effect.makeUI) effect.makeUI(effectsContainer);
+    const effect = new config.Object(config.enabled);
+    if (effect.makeUI) effect.makeUI(
+        effectsContainer, 
+        () => { renderer.render(); }, 
+        () => { renderer.renderLowRes(); },
+    );
     //const shaderSrc = await fetch(`${config.path}?t=${Date.now()}`).then(r => r.text());
     const shaderSrc = await fetch(config.path).then(r => r.text());
     renderer.addPass(id, effect, shaderSrc);

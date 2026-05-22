@@ -4,46 +4,41 @@ export class Renderer {
     constructor(lowResSize = 1000, onImageReady) {
         this.fullResPipeline = new ShaderPipeline(OutputPass);
 		this.lowResPipeline =  new ShaderPipeline(OutputPass, lowResSize);
+        this.currentCanvas = null;
 
 		this.onImageReady = onImageReady;
 
-		this.hasImage = false;
-        this.fullResTimeout = null;
         this.renderVersion = 0;
 
-        this.currentCanvas = null;
+		this.hasImage = false;
+        this.imageWidth = 0;
+        this.imageHeight = 0
     }
 
-    render() {
+    async render() {
     	if (!this.hasImage) return;
         const version = ++this.renderVersion;
-        // immediate preview
+
         this.currentCanvas = this.lowResPipeline.render();
-        this.onImageReady(
-        	this.currentCanvas, 
-        	this.fullResPipeline.canvas.width, 
-        	this.fullResPipeline.canvas.height
-        );
+        this.onImageReady(this.currentCanvas, this.imageWidth, this.imageHeight);
 
-        // debounce expensive render
-        clearTimeout(this.fullResTimeout);
+        await new Promise(requestAnimationFrame);
 
-        this.fullTimeout = setTimeout(() => {
-            // stale render protection
-            if (version !== this.renderVersion) return;
-
-            const result = this.fullResPipeline.render();
-
-            // another stale check
-            if (version !== this.renderVersion) return;
-
-            this.currentCanvas = result;
-            this.onImageReady(this.currentCanvas, this.currentCanvas.width, this.currentCanvas.height);
-
-        }, 500);
+        if (version !== this.renderVersion) return;
+        const result = this.fullResPipeline.render();
+        if (version !== this.renderVersion) return;
+        this.currentCanvas = result;
+        this.onImageReady(this.currentCanvas, this.imageWidth, this.imageHeight);
     }
 
-    export() {
+    renderLowRes() {
+    	if (!this.hasImage) return;
+    	const version = ++this.renderVersion;
+    	this.currentCanvas = this.lowResPipeline.render();
+    	this.onImageReady(this.currentCanvas, this.imageWidth, this.imageHeight);
+    }
+
+    renderExport() {
     	if (!this.hasImage) return;
     	return this.fullResPipeline.render();
     }
@@ -60,6 +55,8 @@ export class Renderer {
     setImage(image) {
     	this.fullResPipeline.setImage(image);
 		this.lowResPipeline.setImage(image);
+		this.imageWidth = image.width;
+		this.imageHeight = image.height;
 		this.hasImage = true;
     }
 

@@ -9,16 +9,18 @@ export class Effect {
 }
 
 export class EffectWithUI extends Effect {
-    constructor(enabled, onChange) {
+    constructor(enabled) {
         super(enabled);
-        this.onChange = onChange;
     }
 
     createPass(gl, vs, fs, ShaderPassObject = ShaderPass) {
         return super.createPass(gl, vs, fs, ShaderPassObject);
     }
 
-    makeUI(container, title="Default") {
+    makeUI(container, title="Default", onChange = () => {}, onInteraction = onChange) {
+        this.onInteraction = onInteraction;
+        this.onChange = onChange;
+
         const root = document.createElement("div");
         root.className = "pass";
 
@@ -63,11 +65,12 @@ export class EffectWithUI extends Effect {
         container.appendChild(root);
     }
 
-    static makeControlSlider({
-        label,
+    makeControlSlider({
+        object = this,
+        property = null,
+        label = "Default Slider",
         defaultValue = 50, 
         transform = v => v,
-        onInput = () => {}, 
         format = v => {
             if (v >= 10) return v.toFixed(0);
             if (v >= 1) return v.toFixed(1);
@@ -102,12 +105,20 @@ export class EffectWithUI extends Effect {
         slider.oninput = () => {
             const value = transform(slider.value);
             valueEl.textContent = format(value);
-            onInput(value);
+            object[property] = value;
+            this.onInteraction(value);
+        }
+
+        slider.onchange = () => {
+            const value = transform(slider.value);
+            valueEl.textContent = format(value);
+            object[property] = value;
+            this.onChange(value);
         }
 
         resetBtn.onclick = () => {
             slider.value = defaultValue;
-            slider.oninput();
+            slider.dispatchEvent(new Event('change', { bubbles: true }));
         };
 
         resetBtn.click();
@@ -164,8 +175,8 @@ class RadialBasisFunctionPass extends ShaderPass {
 }
 
 export class RadialBasisFunctionEffect extends EffectWithUI {
-    constructor(enabled, onChange) {
-        super(enabled, onChange);
+    constructor(enabled) {
+        super(enabled);
         this.sigma = 0;
         this.palette = [];
         this.paletteSize = 0;
@@ -176,37 +187,31 @@ export class RadialBasisFunctionEffect extends EffectWithUI {
         return super.createPass(gl, vs, fsSource, RadialBasisFunctionPass);
     }
 
-    makeUI(container) {
-        super.makeUI(container, "Palettize");
+    makeUI(container, onChange, onInteraction) {
+        super.makeUI(container, "Palettize", onChange, onInteraction);
     }
 
     makeControls(controls) {
         controls.appendChild(
-            EffectWithUI.makeControlSlider({
+            this.makeControlSlider({
                 label: "Color Mix",
+                property: "sigma",
                 transform: v => {
                     const min = 0.01; const max = 0.5; const power = 2;
                     return min + (max - min) * Math.pow((v / 100), power);
                 },
-                onInput: v => {
-                    this.sigma = v;
-                    this.onChange();
-                }
             })
         );
 
         controls.appendChild(
-            EffectWithUI.makeControlSlider({
+            this.makeControlSlider({
                 label: "More Colors", 
+                property: "chromaBias",
                 defaultValue: 0,
                 transform: v => {
                     const min = 0; const max = 25; const power = 2;
                     return min + (max - min) * Math.pow((v / 100), power);
                 },
-                onInput: v => {
-                    this.chromaBias = v;
-                    this.onChange();
-                }
             })
         );
     }
@@ -283,8 +288,8 @@ class BilateralFilterPass extends ShaderPass {
 }
 
 export class BilateralFilterEffect extends EffectWithUI {
-    constructor(enabled, container, onChange) {
-        super(enabled, container, onChange);
+    constructor(enabled) {
+        super(enabled);
         this.sigmaColor = 0;
     }
 
@@ -292,22 +297,19 @@ export class BilateralFilterEffect extends EffectWithUI {
         return super.createPass(gl, vs, fsSource, BilateralFilterPass);
     }
 
-    makeUI(container) {
-        super.makeUI(container, "Smart Blur");
+    makeUI(container, onChange, onInteraction) {
+        super.makeUI(container, "Smart Blur", onChange, onInteraction);
     }
 
     makeControls(controls) {
         controls.appendChild(
-            EffectWithUI.makeControlSlider({ 
-                label: "Strength", 
+            this.makeControlSlider({ 
+                label: "Strength",
+                property: "sigmaColor",
                 defaultValue: 8,
                 transform: v => {
                     const min = 0.01; const max = 0.25; const power = 2;
                     return min + (max - min) * Math.pow((v / 100), power);
-                },
-                onInput: v => {
-                    this.sigmaColor = v;
-                    this.onChange();
                 }
             })
         );
@@ -327,8 +329,8 @@ class LumaGrainPass extends ShaderPass {
 }
 
 export class LumaGrainEffect extends EffectWithUI {
-    constructor(enabled, onChange) {
-        super(enabled, onChange);
+    constructor(enabled) {
+        super(enabled);
         this.granularity = 1;
     }
 
@@ -336,23 +338,20 @@ export class LumaGrainEffect extends EffectWithUI {
         return super.createPass(gl, vs, fsSource, LumaGrainPass)
     }
 
-    makeUI(container) {
-        super.makeUI(container, "Luma Grain");
+    makeUI(container, onChange, onInteraction) {
+        super.makeUI(container, "Luma Grain", onChange, onInteraction);
     }
 
     makeControls(controls) {
         controls.appendChild(
-            EffectWithUI.makeControlSlider({ 
-                label: "Strength", 
+            this.makeControlSlider({ 
+                label: "Strength",
+                property: "granularity", 
                 defaultValue: 10, 
                 transform: v => {
                     const min = 0; const max = 15; const power = 2;
                     return min + (max - min) * Math.pow((v / 100), power);
                 },
-                onInput: v => {
-                    this.granularity = v;
-                    this.onChange();
-                }
             })
         );
     }
@@ -377,8 +376,8 @@ class ColorAdjustPass extends ShaderPass {
 }
 
 export class ColorAdjustEffect extends EffectWithUI {
-    constructor(enabled, onChange) {
-        super(enabled, onChange);
+    constructor(enabled) {
+        super(enabled);
         this.contrast = 50;
         this.saturation = 50;
         this.shadows = 50;
@@ -389,52 +388,40 @@ export class ColorAdjustEffect extends EffectWithUI {
         return super.createPass(gl, vs, fsSource, ColorAdjustPass);
     }
 
-    makeUI(container) {
-        super.makeUI(container, "Color Adjustments");
+    makeUI(container, onChange, onInteraction) {
+        super.makeUI(container, "Color Adjustments", onChange, onInteraction);
     }
 
     makeControls(controls) {
         controls.appendChild(
-            EffectWithUI.makeControlSlider({ 
-                label: "Contrast", 
-                transform: v => { return (v - 50) / 50; },
-                onInput: v => {
-                    this.contrast = v;
-                    this.onChange();
-                }
+            this.makeControlSlider({ 
+                label: "Contrast",
+                property: "contrast",
+                transform: v => { return (v - 50) / 50; }
             })
         );
 
         controls.appendChild(
-            EffectWithUI.makeControlSlider({ 
-                label: "Saturation", 
-                transform: v => { return (v - 50) / 50; },
-                onInput: v => {
-                    this.saturation = v;
-                    this.onChange();
-                }
+            this.makeControlSlider({ 
+                label: "Saturation",
+                property: "saturation",
+                transform: v => { return (v - 50) / 50; }
             })
         );
 
         controls.appendChild(
-            EffectWithUI.makeControlSlider({ 
+            this.makeControlSlider({ 
                 label: "Shadows",
-                transform: v => { return (v - 50) / 50; },
-                onInput: v => {
-                    this.shadows = v;
-                    this.onChange();
-                }
+                property: "shadows",
+                transform: v => { return (v - 50) / 50; }
             })
         );
 
         controls.appendChild(
-            EffectWithUI.makeControlSlider({ 
+            this.makeControlSlider({ 
                 label: "Highlights",
-                transform: v => { return (v - 50) / 50; },
-                onInput: v => {
-                    this.highlights = v;
-                    this.onChange();
-                }
+                property: "highlights",
+                transform: v => { return (v - 50) / 50; }
             })
         );
     }
