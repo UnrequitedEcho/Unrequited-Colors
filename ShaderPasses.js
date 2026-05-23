@@ -1,24 +1,22 @@
 export class Effect {
-    constructor(enabled) {
-        this.enabled = enabled;
+    static async create(enabled, shaderPath) {
+        //const fsSource = await fetch(`${shaderPath}?t=${Date.now()}`).then(r => r.text());
+        const fsSource = await fetch(shaderPath).then(r => r.text());
+        return new this(enabled, fsSource);
     }
 
-    createPass(gl, vs, fs, ShaderPassObject = ShaderPass) {
-        return new ShaderPassObject(this, gl, vs, fs);
+    constructor(enabled, fsSource) {
+        this.enabled = enabled;
+        this.fsSource = fsSource;
+    }
+
+    createPass(gl, vs, ShaderPassObject = ShaderPass) {
+        return new ShaderPassObject(this, gl, vs);
     }
 }
 
 export class EffectWithUI extends Effect {
-    constructor(enabled) {
-        super(enabled);
-    }
-
-    createPass(gl, vs, fs, ShaderPassObject = ShaderPass) {
-        return super.createPass(gl, vs, fs, ShaderPassObject);
-    }
-
-    makeUI(container, title="Default", onChange = () => {}, onInteraction = onChange) {
-        this.onInteraction = onInteraction;
+    makeUI(title, container, onChange = () => {}) {
         this.onChange = onChange;
 
         const root = document.createElement("div");
@@ -106,19 +104,12 @@ export class EffectWithUI extends Effect {
             const value = transform(slider.value);
             valueEl.textContent = format(value);
             object[property] = value;
-            this.onInteraction(value);
-        }
-
-        slider.onchange = () => {
-            const value = transform(slider.value);
-            valueEl.textContent = format(value);
-            object[property] = value;
             this.onChange(value);
         }
 
         resetBtn.onclick = () => {
             slider.value = defaultValue;
-            slider.dispatchEvent(new Event('change', { bubbles: true }));
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
         };
 
         resetBtn.click();
@@ -129,66 +120,21 @@ export class EffectWithUI extends Effect {
     }
 }
 
-class ShaderPass {
-    constructor(effect, gl, vs, fsSource) {
-        this.gl = gl;
-        this.effect = effect;
-        const fs = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fs, fsSource);
-        gl.compileShader(fs);
-
-        this.program = gl.createProgram();
-        this.gl.attachShader(this.program, vs);
-        this.gl.attachShader(this.program, fs);
-        gl.bindAttribLocation(this.program, 0, "a_pos");
-        gl.linkProgram(this.program);
-
-        this.u_image = gl.getUniformLocation(this.program, "u_image");
-    }
-
-    bind(inputTexture) {
-        const gl = this.gl;
-
-        gl.useProgram(this.program);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, inputTexture);
-        gl.uniform1i(this.u_image, 0);
-    }
-}
-
-class RadialBasisFunctionPass extends ShaderPass {
-    constructor(effect, gl, vs, fsSource) {
-        super(effect, gl, vs, fsSource);
-        this.u_palette = gl.getUniformLocation(this.program, "u_palette");
-        this.u_paletteSize = gl.getUniformLocation(this.program, "u_paletteSize");
-        this.u_sigma = gl.getUniformLocation(this.program, "u_sigma");
-        this.u_chromaBias = gl.getUniformLocation(this.program, "u_chromaBias");
-    }
-
-    bind(inputTexture) {
-        super.bind(inputTexture);
-        this.gl.uniform3fv(this.u_palette, this.effect.palette);
-        this.gl.uniform1i(this.u_paletteSize, this.effect.paletteSize);
-        this.gl.uniform1f(this.u_sigma, this.effect.sigma);
-        this.gl.uniform1f(this.u_chromaBias, this.effect.chromaBias);
-    }
-}
-
 export class RadialBasisFunctionEffect extends EffectWithUI {
-    constructor(enabled) {
-        super(enabled);
+    constructor(...args) {
+        super(...args);
         this.sigma = 0;
         this.palette = [];
         this.paletteSize = 0;
         this.chromaBias = 0;
     }
 
-    createPass(gl, vs, fsSource) {
-        return super.createPass(gl, vs, fsSource, RadialBasisFunctionPass);
+    createPass(...args) {
+        return super.createPass(...args, RadialBasisFunctionPass);
     }
 
-    makeUI(container, onChange, onInteraction) {
-        super.makeUI(container, "Palettize", onChange, onInteraction);
+    makeUI(...args) {
+        super.makeUI("Palettize", ...args);
     }
 
     makeControls(controls) {
@@ -259,46 +205,18 @@ export class RadialBasisFunctionEffect extends EffectWithUI {
     }
 }
 
-class BilateralFilterPass extends ShaderPass {
-    constructor(effect, gl, vs, fsSource) {
-        super(effect, gl, vs, fsSource);
-        this.u_sigmaColor = gl.getUniformLocation(this.program, "u_sigmaColor");
-        this.u_resolution = gl.getUniformLocation(this.program, "u_resolution");
-        this.u_spatialWeights = gl.getUniformLocation(this.program, "u_spatialWeights");
-        this.resolution = [];
-        this.spatialWeights = [];
-        const radius = 12;
-        const facS = -1 / (2 * radius / 2 * radius / 2);
-        for (let i = -radius; i <= radius; i++) {
-            this.spatialWeights.push(Math.exp(facS * i * i));
-        }
-    }
-
-    bind(inputTexture) {
-        super.bind(inputTexture);
-        this.gl.uniform1f(this.u_sigmaSpatial, this.effect.sigmaSpatial);
-        this.gl.uniform1f(this.u_sigmaColor, this.effect.sigmaColor);
-        this.gl.uniform1fv(this.u_spatialWeights, this.spatialWeights);
-        this.gl.uniform2fv(this.u_resolution, this.resolution);
-    }
-
-    setSize(width, height) {
-        this.resolution = [width, height];
-    }
-}
-
 export class BilateralFilterEffect extends EffectWithUI {
-    constructor(enabled) {
-        super(enabled);
+    constructor(...args) {
+        super(...args);
         this.sigmaColor = 0;
     }
 
-    createPass(gl, vs, fsSource) {
-        return super.createPass(gl, vs, fsSource, BilateralFilterPass);
+    createPass(...args) {
+        return super.createPass(...args, BilateralFilterPass);
     }
 
-    makeUI(container, onChange, onInteraction) {
-        super.makeUI(container, "Smart Blur", onChange, onInteraction);
+    makeUI(...args) {
+        super.makeUI("Smart Blur", ...args);
     }
 
     makeControls(controls) {
@@ -316,30 +234,18 @@ export class BilateralFilterEffect extends EffectWithUI {
     }
 }
 
-class LumaGrainPass extends ShaderPass {
-    constructor(effect, gl, vs, fsSource) {
-        super(effect, gl, vs, fsSource);
-        this.u_granularity = gl.getUniformLocation(this.program, "u_granularity");
-    }
-
-    bind(inputTexture) {
-        super.bind(inputTexture);
-        this.gl.uniform1f(this.u_granularity, this.effect.granularity);
-    }
-}
-
 export class LumaGrainEffect extends EffectWithUI {
-    constructor(enabled) {
-        super(enabled);
+    constructor(...args) {
+        super(...args);
         this.granularity = 1;
     }
 
-    createPass(gl, vs, fsSource) {
-        return super.createPass(gl, vs, fsSource, LumaGrainPass)
+    createPass(...args) {
+        return super.createPass(...args, LumaGrainPass)
     }
 
-    makeUI(container, onChange, onInteraction) {
-        super.makeUI(container, "Luma Grain", onChange, onInteraction);
+    makeUI(...args) {
+        super.makeUI("Luma Grain", ...args);
     }
 
     makeControls(controls) {
@@ -357,39 +263,21 @@ export class LumaGrainEffect extends EffectWithUI {
     }
 }
 
-class ColorAdjustPass extends ShaderPass {
-    constructor(effect, gl, vs, fsSource) {
-        super(effect, gl, vs, fsSource);
-        this.u_contrast = gl.getUniformLocation(this.program, "u_contrast");
-        this.u_saturation = gl.getUniformLocation(this.program, "u_saturation");
-        this.u_shadows = gl.getUniformLocation(this.program, "u_shadows");
-        this.u_highlights = gl.getUniformLocation(this.program, "u_highlights");
-    }
-
-    bind(inputTexture) {
-        super.bind(inputTexture);
-        this.gl.uniform1f(this.u_contrast, this.effect.contrast);
-        this.gl.uniform1f(this.u_saturation, this.effect.saturation);
-        this.gl.uniform1f(this.u_shadows, this.effect.shadows);
-        this.gl.uniform1f(this.u_highlights, this.effect.highlights);
-    }
-}
-
 export class ColorAdjustEffect extends EffectWithUI {
-    constructor(enabled) {
-        super(enabled);
+    constructor(...args) {
+        super(...args);
         this.contrast = 50;
         this.saturation = 50;
         this.shadows = 50;
         this.highlights = 50;
     }
 
-    createPass(gl, vs, fsSource) {
-        return super.createPass(gl, vs, fsSource, ColorAdjustPass);
+    createPass(...args) {
+        return super.createPass(...args, ColorAdjustPass);
     }
 
-    makeUI(container, onChange, onInteraction) {
-        super.makeUI(container, "Color Adjustments", onChange, onInteraction);
+    makeUI(...args) {
+        super.makeUI("Color Adjustments", ...args);
     }
 
     makeControls(controls) {
@@ -427,20 +315,105 @@ export class ColorAdjustEffect extends EffectWithUI {
     }
 }
 
-export class OutputPass extends ShaderPass {
-    constructor(gl, vs) {
-        const fsSource = `
-            precision highp float;
-            varying vec2 v_uv;
-            uniform sampler2D u_image;
-            void main() {
-                gl_FragColor = texture2D(u_image, v_uv);
-            }
-        `
-        super(null, gl, vs, fsSource);
+class ShaderPass {
+    constructor(effect, gl, vs) {
+        this.gl = gl;
+        this.effect = effect;
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fs, effect.fsSource);
+        gl.compileShader(fs);
+
+        this.program = gl.createProgram();
+        this.gl.attachShader(this.program, vs);
+        this.gl.attachShader(this.program, fs);
+        gl.bindAttribLocation(this.program, 0, "a_pos");
+        gl.linkProgram(this.program);
+
+        this.u_image = gl.getUniformLocation(this.program, "u_image");
+    }
+
+    bind(inputTexture) {
+        const gl = this.gl;
+
+        gl.useProgram(this.program);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, inputTexture);
+        gl.uniform1i(this.u_image, 0);
+    }
+}
+
+class RadialBasisFunctionPass extends ShaderPass {
+    constructor(...args) {
+        super(...args);
+        this.u_palette = this.gl.getUniformLocation(this.program, "u_palette");
+        this.u_paletteSize = this.gl.getUniformLocation(this.program, "u_paletteSize");
+        this.u_sigma = this.gl.getUniformLocation(this.program, "u_sigma");
+        this.u_chromaBias = this.gl.getUniformLocation(this.program, "u_chromaBias");
     }
 
     bind(inputTexture) {
         super.bind(inputTexture);
+        this.gl.uniform3fv(this.u_palette, this.effect.palette);
+        this.gl.uniform1i(this.u_paletteSize, this.effect.paletteSize);
+        this.gl.uniform1f(this.u_sigma, this.effect.sigma);
+        this.gl.uniform1f(this.u_chromaBias, this.effect.chromaBias);
+    }
+}
+
+class BilateralFilterPass extends ShaderPass {
+    constructor(...args) {
+        super(...args);
+        this.u_sigmaColor = this.gl.getUniformLocation(this.program, "u_sigmaColor");
+        this.u_resolution = this.gl.getUniformLocation(this.program, "u_resolution");
+        this.u_spatialWeights = this.gl.getUniformLocation(this.program, "u_spatialWeights");
+        this.resolution = [];
+        this.spatialWeights = [];
+        const radius = 12;
+        const facS = -1 / (2 * radius / 2 * radius / 2);
+        for (let i = -radius; i <= radius; i++) {
+            this.spatialWeights.push(Math.exp(facS * i * i));
+        }
+    }
+
+    bind(inputTexture) {
+        super.bind(inputTexture);
+        this.gl.uniform1f(this.u_sigmaSpatial, this.effect.sigmaSpatial);
+        this.gl.uniform1f(this.u_sigmaColor, this.effect.sigmaColor);
+        this.gl.uniform1fv(this.u_spatialWeights, this.spatialWeights);
+        this.gl.uniform2fv(this.u_resolution, this.resolution);
+    }
+
+    setSize(width, height) {
+        this.resolution = [width, height];
+    }
+}
+
+class LumaGrainPass extends ShaderPass {
+    constructor(...args) {
+        super(...args);
+        this.u_granularity = this.gl.getUniformLocation(this.program, "u_granularity");
+    }
+
+    bind(inputTexture) {
+        super.bind(inputTexture);
+        this.gl.uniform1f(this.u_granularity, this.effect.granularity);
+    }
+}
+
+class ColorAdjustPass extends ShaderPass {
+    constructor(...args) {
+        super(...args);
+        this.u_contrast = this.gl.getUniformLocation(this.program, "u_contrast");
+        this.u_saturation = this.gl.getUniformLocation(this.program, "u_saturation");
+        this.u_shadows = this.gl.getUniformLocation(this.program, "u_shadows");
+        this.u_highlights = this.gl.getUniformLocation(this.program, "u_highlights");
+    }
+
+    bind(inputTexture) {
+        super.bind(inputTexture);
+        this.gl.uniform1f(this.u_contrast, this.effect.contrast);
+        this.gl.uniform1f(this.u_saturation, this.effect.saturation);
+        this.gl.uniform1f(this.u_shadows, this.effect.shadows);
+        this.gl.uniform1f(this.u_highlights, this.effect.highlights);
     }
 }
