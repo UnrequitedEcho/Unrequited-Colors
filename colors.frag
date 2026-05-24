@@ -1,11 +1,8 @@
+#version 300 es
 precision highp float;
 
-/* Contrast    contrast curve + tiny chroma compensation
-Saturation  vibrance near 0, saturation at extremes
-Shadows lift dark L + expand tonal range as strength increases
-Highlights  compress bright L + expand tonal range as strength increases */
-
-varying vec2 v_uv;
+in vec2 v_uv;
+out vec4 fragColor;
 uniform sampler2D u_image;
 uniform float u_contrast; // expected -1 -> 1
 uniform float u_saturation;
@@ -68,7 +65,7 @@ vec3 highlights(vec3 c) {
 }
 
 void main() {
-    vec3 c = texture2D(u_image, v_uv).xyz;
+    vec3 c = texture(u_image, v_uv).xyz;
     vec3 cc = c;
     if (abs(u_contrast) > EPS) c += contrast(cc);
     if (abs(u_saturation) > EPS) c += saturation(cc);
@@ -77,6 +74,6 @@ void main() {
 
     c.x = clamp(c.x, 0.0, 1.0);
 
-    gl_FragColor = vec4(c, 1.);
+    fragColor = vec4(c, 1.);
 }
 

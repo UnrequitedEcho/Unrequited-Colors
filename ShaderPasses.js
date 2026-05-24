@@ -1,7 +1,7 @@
 export class Effect {
     static async create(enabled, shaderPath) {
-        //const fsSource = await fetch(`${shaderPath}?t=${Date.now()}`).then(r => r.text());
-        const fsSource = await fetch(shaderPath).then(r => r.text());
+        const fsSource = await fetch(`${shaderPath}?t=${Date.now()}`).then(r => r.text());
+        //const fsSource = await fetch(shaderPath).then(r => r.text());
         return new this(enabled, fsSource);
     }
 
@@ -364,9 +364,7 @@ class BilateralFilterPass extends ShaderPass {
     constructor(...args) {
         super(...args);
         this.u_sigmaColor = this.gl.getUniformLocation(this.program, "u_sigmaColor");
-        this.u_resolution = this.gl.getUniformLocation(this.program, "u_resolution");
         this.u_spatialWeights = this.gl.getUniformLocation(this.program, "u_spatialWeights");
-        this.resolution = [];
         this.spatialWeights = [];
         const radius = 12;
         const facS = -1 / (2 * radius / 2 * radius / 2);
@@ -380,11 +378,6 @@ class BilateralFilterPass extends ShaderPass {
         this.gl.uniform1f(this.u_sigmaSpatial, this.effect.sigmaSpatial);
         this.gl.uniform1f(this.u_sigmaColor, this.effect.sigmaColor);
         this.gl.uniform1fv(this.u_spatialWeights, this.spatialWeights);
-        this.gl.uniform2fv(this.u_resolution, this.resolution);
-    }
-
-    setSize(width, height) {
-        this.resolution = [width, height];
     }
 }
 

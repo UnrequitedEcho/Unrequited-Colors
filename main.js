@@ -1,9 +1,6 @@
 import { Renderer } from "./Renderer.js";
 import * as ShaderPasses from './ShaderPasses.js';
 import { Palette } from "./Palette.js";
-import { Viewport } from "./Viewport.js";
-
-
 
 // -----------------------------------------------------------------
 // Shaders

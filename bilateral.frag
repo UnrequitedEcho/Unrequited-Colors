@@ -1,27 +1,27 @@
+#version 300 es
 precision highp float;
 
-varying vec2 v_uv;
+in vec2 v_uv;
+out vec4 fragColor;
 uniform sampler2D u_image;
 uniform float u_sigmaColor;
-uniform vec2 u_resolution;
 uniform float u_spatialWeights[25];
 
 const float SIGMA_SPATIAL = 6.;
 const int RADIUS = int(SIGMA_SPATIAL) * 2;
 
 void main() {
-    vec3 x = texture2D(u_image, v_uv).xyz;
+    vec3 x = texture(u_image, v_uv).xyz;
 
     float facL = -1. / (2. * u_sigmaColor * u_sigmaColor);
     float sumW = 0.;
     vec3 sumC = vec3(0.);
-    vec2 texel = 1. / u_resolution;
 
     for (int i = -RADIUS; i <= RADIUS; i++){
         for (int j = -RADIUS; j <= RADIUS; j++){
-            vec2 pos = vec2(i, j);
+            ivec2 xPos = ivec2(gl_FragCoord.xy);
 
-            vec3 offsetX = texture2D(u_image, v_uv + pos * texel).xyz;
+            vec3 offsetX = texelFetch(u_image, xPos + ivec2(i, j), 0).xyz;
             vec3 distL = x - offsetX;
             float distL2 = dot(distL, distL);
 
@@ -31,5 +31,5 @@ void main() {
             sumC += offsetX * w;
         }
     }
-    gl_FragColor = vec4(sumC / sumW, 1.);
+    fragColor = vec4(sumC / sumW, 1.);
 }

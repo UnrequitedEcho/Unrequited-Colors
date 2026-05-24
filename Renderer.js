@@ -1,15 +1,14 @@
 export class Renderer {
 	constructor(canvas, previewMaxSize = 1500) {
 		this.canvas = canvas;
-		this.gl = this.canvas.getContext("webgl");
+		this.gl = this.canvas.getContext("webgl2");
 		if (!this.gl) { throw new Error("WebGL not supported"); }
 		const gl = this.gl;
 
-		// float texture extensions
-		this.floatTexExt = gl.getExtension("OES_texture_float");
-		this.floatRTTExt = gl.getExtension("WEBGL_color_buffer_float");
-		if (!this.floatTexExt || !this.floatRTTExt) {
-		    throw new Error("Float textures not supported");
+		this.extColorBufferFloat = gl.getExtension("EXT_color_buffer_float");
+
+		if (!this.extColorBufferFloat) {
+		    throw new Error("EXT_color_buffer_float not supported");
 		}
 
 		gl.disable(gl.DITHER);
@@ -20,6 +19,13 @@ export class Renderer {
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
 		const quadBufferDataArray = [-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1];
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(quadBufferDataArray), gl.STATIC_DRAW);
+
+		this.vao = gl.createVertexArray();
+		gl.bindVertexArray(this.vao);
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+		gl.enableVertexAttribArray(0);
+		gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+		//gl.bindVertexArray(null);
 
 		// Display Shader setup		
 		this.vs = gl.createShader(gl.VERTEX_SHADER);
@@ -78,8 +84,8 @@ export class Renderer {
 	makePipelines(effects) {
 		const passes = [];
 		effects.forEach((e) => { passes.push(e.createPass(this.gl, this.vs)); });
-		this.fullResPipeline = new ShaderPipeline(this.gl, this.quadBuffer, passes);
-		this.previewPipeline =  new ShaderPipeline(this.gl, this.quadBuffer, passes);
+		this.fullResPipeline = new ShaderPipeline(this.gl, this.quadBuffer, this.vao, passes);
+		this.previewPipeline =  new ShaderPipeline(this.gl, this.quadBuffer, this.vao, passes);
 	}
 
 	setImage(image) {
@@ -246,9 +252,10 @@ export class Renderer {
 }
 
 class ShaderPipeline {
-	constructor(gl, quadBuffer, passes) {
+	constructor(gl, quadBuffer, vao, passes) {
 		this.gl = gl;
 		this.quadBuffer = quadBuffer;
+		this.vao = vao;
 		this.passes = passes;
 
 		this.inputTexture = gl.createTexture();
@@ -274,8 +281,8 @@ class ShaderPipeline {
 	    // Resize the render targets
 		for (const target of this.buffers) {
 			gl.bindTexture(gl.TEXTURE_2D, target.texture);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, image.width, image.height,
-	    		0, gl.RGBA, gl.FLOAT, null
+			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, image.width, image.height,
+	    		0, gl.RGBA, gl.HALF_FLOAT, null
 			);
 		}
 
@@ -283,19 +290,14 @@ class ShaderPipeline {
 		this.width = image.width;
 	}
 
-	beginRender(chunkWidth, chunkHeight) {
-		this.chunkWidth = chunkWidth > this.width ? this.width : chunkWidth;
-		this.chunkHeight = chunkHeight > this.height ? this.height: chunkHeight;
+	beginRender(tileWidth, tileHeight) {
+		this.tileWidth = tileWidth > this.width ? this.width : tileWidth;
+		this.tileHeight = tileHeight > this.height ? this.height: tileHeight;
 
 		this.currentPassIdx = 0;
 		this.activePasses = this.passes.filter(
 	        (pass) => pass.effect.enabled
 	    );
-		this.activePasses.forEach((pass) => {
-		    if (pass.setSize) {
-		        pass.setSize(this.width, this.height);
-		    }
-		});
 
 		this.currentTileX = 0;
 		this.currentTileY = 0;
@@ -315,12 +317,13 @@ class ShaderPipeline {
 
 			console.log(this.currentPassIdx, this.currentTileX, this.currentTileY, performance.now() - startTime);
 
-			const tileWidth = Math.min(this.chunkWidth, this.width - this.currentTileX);
-			const tileHeight = Math.min(this.chunkHeight, this.height - this.currentTileY);
-
-	        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.writeBuffer.framebuffer);
-	        this.gl.scissor(this.currentTileX, this.currentTileY, tileWidth, tileHeight);
-	        this.renderChunk();
+			const tileWidth = Math.min(this.tileWidth, this.width - this.currentTileX);
+			const tileHeight = Math.min(this.tileHeight, this.height - this.currentTileY);
+	        this.renderTile(
+	        	this.currentTexture, this.writeBuffer.framebuffer, 
+	        	this.currentTileX, this.currentTileY,
+	        	tileWidth, tileHeight, this.activePasses[this.currentPassIdx]
+	        );
 	        
 	        // Advance tile position
 	        this.currentTileX += tileWidth;
@@ -344,17 +347,17 @@ class ShaderPipeline {
     	}
 	}
 
-	renderChunk() {
+	renderTile(sourceTexture, writeBuf, x, y, width, height, pass) {
 		const gl = this.gl;
-		const pass = this.activePasses[this.currentPassIdx]
+		this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, writeBuf);
+	    this.gl.scissor(x, y, width, height);
 
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-		gl.enableVertexAttribArray(0);
-        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-        
-        pass.bind(this.currentTexture);
+		gl.bindVertexArray(this.vao);
+        pass.bind(sourceTexture);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
-        gl.finish();
+
+        const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+        gl.clientWaitSync(sync, 0, 0);
 	}
 
 	createRenderTarget() {
@@ -375,9 +378,11 @@ class ShaderPipeline {
 	}
 }
 
-const vsSource = `
-attribute vec2 a_pos;
-varying vec2 v_uv;
+const vsSource = `#version 300 es
+precision highp float; 
+
+in vec2 a_pos;
+out vec2 v_uv;
 
 void main() {
     v_uv = (a_pos + 1.0) * 0.5;
@@ -385,9 +390,11 @@ void main() {
 }
 `
 
-const fsSource = `
+const fsSource = `#version 300 es
 precision highp float; 
-varying vec2 v_uv; 
+
+in vec2 v_uv; 
+out vec4 fragColor;
 uniform sampler2D u_image; 
 uniform float u_scale; 
 uniform vec2 u_offset; 
@@ -403,9 +410,9 @@ void main() {
 	vec2 uv = imagePx / u_imageSize; 
 
 	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { 
-		gl_FragColor = vec4(0.0); return; 
+		fragColor = vec4(0.0); return; 
 	} 
 
-	gl_FragColor = texture2D(u_image, uv);
+	fragColor = texture(u_image, uv);
 }
 `
