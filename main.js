@@ -12,7 +12,7 @@ const effectsConfig = {
     rgbToOklab:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './rgbToOklab.frag', },  
     bilateralFilter: { Object: ShaderPasses.BilateralFilterEffect,      enabled: false, path: './bilateral.frag',  },  
     colorAdjust:     { Object: ShaderPasses.ColorAdjustEffect,          enabled: false, path: './colors.frag',     },
-    rbf:             { Object: ShaderPasses.RadialBasisFunctionEffect,  enabled: true,  path: './rfb.frag',        },  
+    rbf:             { Object: ShaderPasses.RadialBasisFunctionEffect,  enabled: true,  path: './rbf.frag',        },  
     lumaGrain:       { Object: ShaderPasses.LumaGrainEffect,            enabled: false, path: './dither.frag',     },
     oklabToRgb:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './oklabToRgb.frag', },  
 };
@@ -28,18 +28,18 @@ for (const [id, config] of Object.entries(effectsConfig)) {
     );
     effects[id] = effect;
 }
-renderer.makePipelines(Object.values(effects))
+renderer.makePipeline(Object.values(effects));
 
 const globalEffectsToggle = document.getElementById("global-effects-toggle");
 globalEffectsToggle.onchange = () => {
     if (globalEffectsToggle.checked) {
         effectsContainer.classList.remove("disabled");
         renderer.showOriginal = false;
-        renderer.present();
+        renderer.render();
     } else {
         effectsContainer.classList.add("disabled");
         renderer.showOriginal = true;
-        renderer.present();
+        renderer.render();
     }
 }
 

@@ -1,18 +1,19 @@
 export class Renderer {
-	constructor(canvas, previewMaxSize = 1500) {
+	constructor(canvas) {
 		this.canvas = canvas;
 		this.gl = this.canvas.getContext("webgl2");
 		if (!this.gl) { throw new Error("WebGL not supported"); }
 		const gl = this.gl;
 
 		this.extColorBufferFloat = gl.getExtension("EXT_color_buffer_float");
-
 		if (!this.extColorBufferFloat) {
 		    throw new Error("EXT_color_buffer_float not supported");
 		}
 
 		gl.disable(gl.DITHER);
 		gl.enable(gl.SCISSOR_TEST);
+
+		this.tileSize = Math.round(this.getMaxTextureSize() / 16);
 
 		// Setup fullscreen quad
 		this.quadBuffer = gl.createBuffer();
@@ -61,19 +62,9 @@ export class Renderer {
 
 		this.displayTexture = null;
 
-		this.previewMaxSize = previewMaxSize;
-
-		this.originalImageTexture = gl.createTexture();
-	    gl.bindTexture(gl.TEXTURE_2D, this.originalImageTexture);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
 	    this.hasImage = false;
-		this.originalWidth;
-		this.originalHeight;
-		this.showPreview = false;
+		this.width;
+		this.height;
 		this.showOriginal = false;
 
 		this.pendingRenderRAF = null;
@@ -81,45 +72,24 @@ export class Renderer {
 		this.initEvents();
 	}
 
-	makePipelines(effects) {
-		const passes = [];
-		effects.forEach((e) => { passes.push(e.createPass(this.gl, this.vs)); });
-		this.fullResPipeline = new ShaderPipeline(this.gl, this.quadBuffer, this.vao, passes);
-		this.previewPipeline =  new ShaderPipeline(this.gl, this.quadBuffer, this.vao, passes);
+	makePipeline(effects) {
+		effects.forEach((effect) => { effect.makeGlProgram(this.gl, this.vs) });
+		this.pipeline = new ShaderPipeline(this.gl, this.quadBuffer, this.vao, effects);
 	}
 
 	setImage(image) {
-		if (!this.fullResPipeline) return;
+		if (!this.pipeline) return;
 
-		this.originalWidth = image.width;
-		this.originalHeight = image.height;
-
-		const gl = this.gl;
-
-	    gl.bindTexture(gl.TEXTURE_2D, this.originalImageTexture);
-	    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+		this.width = image.width;
+		this.height = image.height;
 		this.hasImage = true;
-
-		if (this.previewMaxSize) { 
-			const scale = Math.min(1, this.previewMaxSize / Math.max(image.width, image.height));
-
-			const resized = document.createElement("canvas");
-			const ctx = resized.getContext("2d");
-			resized.width = Math.round(image.width * scale);
-			resized.height = Math.round(image.height * scale);
-			ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, resized.width, resized.height);
-			this.previewPipeline.setImage(resized);
-			this.showPreview = true;
-		}
-
-		this.fullResPipeline.setImage(image);
+		this.pipeline.setImage(image);
 	}
 
 	present() {
-		if (!this.displayTexture && !(this.showOriginal && this.hasImage)) return;
+		if (!this.hasImage || !this.displayTexture) return;
 
 		const gl = this.gl;
-		let source = this.showOriginal ? this.originalImageTexture : this.displayTexture;
 
 	    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
 	    gl.enableVertexAttribArray(0);
@@ -130,12 +100,12 @@ export class Renderer {
 
         gl.useProgram(this.displayProgram);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, source);
+        gl.bindTexture(gl.TEXTURE_2D, this.displayTexture);
         gl.uniform1i(this.u_image, 0);
         gl.uniform1f(this.u_scale, this.scale);
         gl.uniform2f(this.u_offset, this.offsetX, this.offsetY);
         gl.uniform2f(this.u_canvasSize, this.canvas.width, this.canvas.height);
-        gl.uniform2f(this.u_imageSize, this.originalWidth, this.originalHeight);
+        gl.uniform2f(this.u_imageSize, this.width, this.height);
 
         gl.clearColor(0, 0, 0, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT);
@@ -152,21 +122,14 @@ export class Renderer {
 			this.pendingRenderRAF = null;
 		}
 
-		if (this.showPreview) {
-			this.previewPipeline.beginRender(
-				this.previewPipeline.width,
-    			this.previewPipeline.height
-    		);
-			this.displayTexture = this.previewPipeline.renderSome(0);
-			this.present();
-		}
-
-		this.fullResPipeline.beginRender(512, 512);
+		this.pipeline.beginRender(this.tileSize, this.tileSize, this.showOriginal);
+		const startTime = performance.now();
 		const renderFrame = () => {
-		    const res = this.fullResPipeline.renderSome(16);
+		    const res = this.pipeline.renderSome(16);
 
 		    if (res) {
 		        this.displayTexture = res;
+		        console.log(performance.now() - startTime);
 		        this.present();
 		    }
 			else {
@@ -179,20 +142,20 @@ export class Renderer {
 
 	export() {
 		if (!this.hasImage) return;
-		this.fullResPipeline.beginRender(512);
-		return this.fullResPipeline.renderSome(0);
+		this.pipeline.beginRender(this.tileSize, this.tileSize);
+		return this.pipeline.renderSome(0);
 	}
 
 	resetTransform() {
-		if (!this.originalWidth || !this.originalHeight) return
+		if (!this.width || !this.height) return
 		
 		this.scale = Math.min(
-			this.canvas.width / this.originalWidth,
-			this.canvas.height / this.originalHeight
+			this.canvas.width / this.width,
+			this.canvas.height / this.height
 		);
 
-		this.offsetX = (this.canvas.width - this.originalWidth * this.scale) / 2
-		this.offsetY = (this.canvas.height - this.originalHeight * this.scale) / 2
+		this.offsetX = (this.canvas.width - this.width * this.scale) / 2
+		this.offsetY = (this.canvas.height - this.height * this.scale) / 2
 		this.present();
 	}
 
@@ -252,58 +215,83 @@ export class Renderer {
 }
 
 class ShaderPipeline {
-	constructor(gl, quadBuffer, vao, passes) {
+	constructor(gl, quadBuffer, vao, effects) {
 		this.gl = gl;
 		this.quadBuffer = quadBuffer;
 		this.vao = vao;
-		this.passes = passes;
+		this.effects = effects;
 
-		this.inputTexture = gl.createTexture();
-	    gl.bindTexture(gl.TEXTURE_2D, this.inputTexture);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		this.originalImageTexture = this.createTexture(gl.NEAREST);
 
 	    this.buffers = [
 	    	this.createRenderTarget(),
 	    	this.createRenderTarget()
 	    ]
+
+	    for (const effect of effects) {
+	    	if (!('textureCache' in effect)) continue;
+	    	effect.textureCache = this.createTexture(gl.NEAREST);
+
+	    }
 	}
 
-	setImage(image, maxSize = null) {
+	setImage(image) {
 		const gl = this.gl;
 
-		// Copy the image to the input texture
-		gl.bindTexture(gl.TEXTURE_2D, this.inputTexture);
+		// Make a texture for the original image
+		gl.bindTexture(gl.TEXTURE_2D, this.originalImageTexture);
 	    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
 
-	    // Resize the render targets
-		for (const target of this.buffers) {
-			gl.bindTexture(gl.TEXTURE_2D, target.texture);
-			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, image.width, image.height,
-	    		0, gl.RGBA, gl.HALF_FLOAT, null
-			);
+	    // Resize the ping pong textures
+		for (const buffer of this.buffers) {
+		    gl.bindTexture(gl.TEXTURE_2D, buffer.texture);
+
+		    gl.texImage2D(
+		        gl.TEXTURE_2D, 0, gl.RGBA16F, image.width, image.height,
+		        0, gl.RGBA, gl.HALF_FLOAT, null
+		    );
 		}
 
+		// Resize effect caches
+		for (const effect of this.effects) {
+			effect.changed = true;
+			if (!('textureCache' in effect)) continue;
+		    gl.bindTexture(gl.TEXTURE_2D, effect.textureCache);
+		    gl.texImage2D(
+		        gl.TEXTURE_2D, 0, gl.RGBA16F, image.width, image.height,
+		        0, gl.RGBA, gl.HALF_FLOAT, null
+		    );
+		}
+		
 		this.height = image.height;
 		this.width = image.width;
 	}
 
-	beginRender(tileWidth, tileHeight) {
+	beginRender(tileWidth, tileHeight, skipEffects = false) {
 		this.tileWidth = tileWidth > this.width ? this.width : tileWidth;
 		this.tileHeight = tileHeight > this.height ? this.height: tileHeight;
 
-		this.currentPassIdx = 0;
-		this.activePasses = this.passes.filter(
-	        (pass) => pass.effect.enabled
-	    );
+		this.currentTexture = this.originalImageTexture;
+		this.currentEffectIdx = 0;
+		this.activeEffects = skipEffects
+		    ? []
+		    : this.effects.filter(effect => effect.enabled);
 
+		for (let i = 0; i < this.activeEffects.length; i++) {
+			const effect = this.activeEffects[i];
+			if (effect.changed) break;
+			if (effect.textureCache) {
+				this.currentEffectIdx = i + 1;
+				this.currentTexture = effect.textureCache;
+			}
+		}
+
+		console.log(this.activeEffects.map(e => e.constructor.name), this.currentEffectIdx);
+		
 		this.currentTileX = 0;
 		this.currentTileY = 0;
 		this.readBuffer = this.buffers[0];
 		this.writeBuffer = this.buffers[1];
-		this.currentTexture = this.inputTexture;
 		this.gl.viewport(0, 0, this.width, this.height);
 	}
 
@@ -315,14 +303,21 @@ class ShaderPipeline {
 				return null;
 			}
 
-			console.log(this.currentPassIdx, this.currentTileX, this.currentTileY, performance.now() - startTime);
+		    // Rendering complete
+	        if (this.currentEffectIdx >= this.activeEffects.length) {
+	            return this.currentTexture;
+	        }
+
+			// console.log(this.currentEffectIdx, this.currentTileX, this.currentTileY, performance.now() - startTime);
 
 			const tileWidth = Math.min(this.tileWidth, this.width - this.currentTileX);
 			const tileHeight = Math.min(this.tileHeight, this.height - this.currentTileY);
+			const effect = this.activeEffects[this.currentEffectIdx];
+
 	        this.renderTile(
 	        	this.currentTexture, this.writeBuffer.framebuffer, 
 	        	this.currentTileX, this.currentTileY,
-	        	tileWidth, tileHeight, this.activePasses[this.currentPassIdx]
+	        	tileWidth, tileHeight, effect
 	        );
 	        
 	        // Advance tile position
@@ -332,49 +327,58 @@ class ShaderPipeline {
 	            this.currentTileY += tileHeight;
 	        }
 
-	        // Advance pass
+	        // Advance effect
 	        if (this.currentTileY >= this.height) {
 	            this.currentTileY = 0;
-	            this.currentPassIdx++;
+	            this.currentEffectIdx++;
+	            this.currentTexture = this.writeBuffer.texture;
+	            effect.changed = false;
+	            if ('textureCache' in effect) {
+	            	this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.writeBuffer.framebuffer);
+	            	this.gl.bindTexture(this.gl.TEXTURE_2D, effect.textureCache);
+	            	this.gl.copyTexSubImage2D(this.gl.TEXTURE_2D, 0, 0, 0, 0, 0, this.width, this.height);
+	            }
 				[this.readBuffer, this.writeBuffer] = [this.writeBuffer, this.readBuffer]
-	            this.currentTexture = this.readBuffer.texture;
 	        }  
-
-	    	// Rendering complete
-	        if (this.currentPassIdx >= this.activePasses.length) {
-	            return this.currentTexture;
-	        }
     	}
 	}
 
-	renderTile(sourceTexture, writeBuf, x, y, width, height, pass) {
+	renderTile(sourceTexture, writeBuf, x, y, width, height, effect) {
 		const gl = this.gl;
 		this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, writeBuf);
 	    this.gl.scissor(x, y, width, height);
 
 		gl.bindVertexArray(this.vao);
-        pass.bind(sourceTexture);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+		gl.useProgram(effect.program);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, sourceTexture);
+        effect.setUniforms();
 
-        const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
-        gl.clientWaitSync(sync, 0, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.finish();
 	}
 
 	createRenderTarget() {
 		const gl = this.gl;
-		const texture = gl.createTexture();
-
-		gl.bindTexture(gl.TEXTURE_2D, texture);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
+		const texture = this.createTexture(gl.NEAREST);
 		const framebuffer = gl.createFramebuffer();
 		gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
 
 		return {texture, framebuffer};
+	}
+
+	createTexture(filter) {
+		const gl = this.gl;
+
+		const texture = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, texture);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+
+		return texture;
 	}
 }
 
