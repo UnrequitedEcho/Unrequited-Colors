@@ -1,12 +1,17 @@
-import { Renderer } from "./Renderer.js";
+import { DisplayView, Renderer } from "./Renderer.js";
 import * as ShaderPasses from './ShaderPasses.js';
 import { Palette } from "./Palette.js";
+import { Crop } from "./Crop.js";
 
 // -----------------------------------------------------------------
-// Shaders
+// Effects
 // -----------------------------------------------------------------
 const canvas = document.getElementById("preview-canvas");
-const renderer = new Renderer(canvas, 1500);
+const displayView = new DisplayView(canvas);
+const renderer = new Renderer(
+    displayView.gl, displayView.quadBuffer, 
+    (res) => { displayView.present(res); }
+); 
 
 const effectsConfig = {  
     rgbToOklab:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './rgbToOklab.frag', },  
@@ -24,22 +29,20 @@ for (const [id, config] of Object.entries(effectsConfig)) {
     const effect = await config.Object.create(config.enabled, config.path);
     if (effect.makeUI) effect.makeUI(
         effectsContainer, 
-        () => { renderer.render(); }, 
+        () => { renderer.render(); } 
     );
     effects[id] = effect;
 }
-renderer.makePipeline(Object.values(effects));
+renderer.setEffects(Object.values(effects), displayView.vs);
 
 const globalEffectsToggle = document.getElementById("global-effects-toggle");
-globalEffectsToggle.onchange = () => {
+globalEffectsToggle.onchange = async () => {
     if (globalEffectsToggle.checked) {
         effectsContainer.classList.remove("disabled");
-        renderer.showOriginal = false;
         renderer.render();
     } else {
         effectsContainer.classList.add("disabled");
-        renderer.showOriginal = true;
-        renderer.render();
+        renderer.render(true);
     }
 }
 
@@ -54,6 +57,16 @@ const palette = new Palette((colors) => {
 palette.createUI(paletteContainer, presets);
 
 // -----------------------------------------------------------------
+// Crop
+// -----------------------------------------------------------------
+const cropContainer = document.getElementById("crop");
+const crop = new Crop((...args) => {
+    displayView.setCrop(...args);
+});
+//displayView.interactionHandler = crop;
+crop.createUI(cropContainer);
+
+// -----------------------------------------------------------------
 // Import Button
 // -----------------------------------------------------------------
 async function importImage(file) {
@@ -61,7 +74,7 @@ async function importImage(file) {
     img.src = URL.createObjectURL(file);
     await img.decode();
 
-    const maxTextureSize = renderer.getMaxTextureSize();
+    const maxTextureSize = displayView.getMaxTextureSize();
     const canvas = document.createElement("canvas");;
     let scale = 1;
 
@@ -94,7 +107,7 @@ openImageBtn.onclick = () => {
         const img = await importImage(file);
 
         renderer.setImage(img);
-        renderer.resetTransform();
+        displayView.resetTransform({width: img.width, height: img.height});
         renderer.render();
     };
 
@@ -125,7 +138,7 @@ saveBtn.onclick = () => {
 // -----------------------------------------------------------------
 const resetBtn = document.getElementById("resetView")
 resetBtn.onclick = () => {
-    renderer.resetTransform();
+    displayView.resetTransform();
 }
 
 // DEBUG: AutoLoad Debug Image
@@ -145,5 +158,5 @@ async function importImageFromUrl(url) {
 }
 const img = await importImageFromUrl('./debug.jpeg');
 renderer.setImage(img);
+displayView.resetTransform({width: img.width, height: img.height});
 renderer.render();
-

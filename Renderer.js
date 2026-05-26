@@ -1,19 +1,14 @@
-export class Renderer {
+export class DisplayView {
 	constructor(canvas) {
-		this.canvas = canvas;
+		this.canvas = canvas;		
+		this.canvas.width = canvas.clientWidth;
+		this.canvas.height = canvas.clientHeight;
+
 		this.gl = this.canvas.getContext("webgl2");
 		if (!this.gl) { throw new Error("WebGL not supported"); }
 		const gl = this.gl;
-
-		this.extColorBufferFloat = gl.getExtension("EXT_color_buffer_float");
-		if (!this.extColorBufferFloat) {
-		    throw new Error("EXT_color_buffer_float not supported");
-		}
-
 		gl.disable(gl.DITHER);
 		gl.enable(gl.SCISSOR_TEST);
-
-		this.tileSize = Math.round(this.getMaxTextureSize() / 16);
 
 		// Setup fullscreen quad
 		this.quadBuffer = gl.createBuffer();
@@ -21,14 +16,7 @@ export class Renderer {
 		const quadBufferDataArray = [-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1];
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(quadBufferDataArray), gl.STATIC_DRAW);
 
-		this.vao = gl.createVertexArray();
-		gl.bindVertexArray(this.vao);
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-		gl.enableVertexAttribArray(0);
-		gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-		//gl.bindVertexArray(null);
-
-		// Display Shader setup		
+		// Display Shader GL program		
 		this.vs = gl.createShader(gl.VERTEX_SHADER);
         gl.shaderSource(this.vs, vsSource);
         gl.compileShader(this.vs);
@@ -42,52 +30,38 @@ export class Renderer {
         gl.bindAttribLocation(this.displayProgram, 0, "a_pos");
         gl.linkProgram(this.displayProgram);
 
+        // Display shader uniforms
         this.u_image = gl.getUniformLocation(this.displayProgram, "u_image");
         this.u_scale = gl.getUniformLocation(this.displayProgram, "u_scale");
         this.u_offset = gl.getUniformLocation(this.displayProgram, "u_offset");
         this.u_canvasSize = gl.getUniformLocation(this.displayProgram, "u_canvasSize");
         this.u_imageSize = gl.getUniformLocation(this.displayProgram, "u_imageSize");
+        this.u_cropEnabled = gl.getUniformLocation(this.displayProgram, "u_cropEnabled");
+        this.u_cropCenter = gl.getUniformLocation(this.displayProgram, "u_cropCenter");
+        this.u_cropSize = gl.getUniformLocation(this.displayProgram, "u_cropSize");
+        this.u_cropRotation = gl.getUniformLocation(this.displayProgram, "u_cropRotation");
 
+        // Display state
         this.scale = 1;
-		this.offsetX = 0;
-		this.offsetY = 0;
+		this.offset = {x: 0, y: 0};
+		this.cropEnabled = false;
+		this.cropCenter = {x: 0, y: 0};
+		this.cropSize = {width: 0, height: 0};
+		this.cropRotation = 0;
 
 		// Interaction state
+		this.interactionHandler = null;
 		this.dragging = false;
-		this.lastX = 0;
-		this.lastY = 0;
+		this.lastPos = {x: 0, y: 0};
 
-		this.canvas.width = this.canvas.clientWidth;
-		this.canvas.height = this.canvas.clientHeight;
-
-		this.displayTexture = null;
-
-	    this.hasImage = false;
-		this.width;
-		this.height;
-		this.showOriginal = false;
-
-		this.pendingRenderRAF = null;
+		this.renderResult;
 
 		this.initEvents();
 	}
 
-	makePipeline(effects) {
-		effects.forEach((effect) => { effect.makeGlProgram(this.gl, this.vs) });
-		this.pipeline = new ShaderPipeline(this.gl, this.quadBuffer, this.vao, effects);
-	}
-
-	setImage(image) {
-		if (!this.pipeline) return;
-
-		this.width = image.width;
-		this.height = image.height;
-		this.hasImage = true;
-		this.pipeline.setImage(image);
-	}
-
-	present() {
-		if (!this.hasImage || !this.displayTexture) return;
+	present(renderResult) {
+		if (renderResult) this.renderResult = renderResult;
+		if (!this.renderResult) return;
 
 		const gl = this.gl;
 
@@ -100,12 +74,16 @@ export class Renderer {
 
         gl.useProgram(this.displayProgram);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.displayTexture);
+        gl.bindTexture(gl.TEXTURE_2D, this.renderResult.texture);
         gl.uniform1i(this.u_image, 0);
         gl.uniform1f(this.u_scale, this.scale);
-        gl.uniform2f(this.u_offset, this.offsetX, this.offsetY);
+        gl.uniform2f(this.u_offset, this.offset.x, this.offset.y);
         gl.uniform2f(this.u_canvasSize, this.canvas.width, this.canvas.height);
-        gl.uniform2f(this.u_imageSize, this.width, this.height);
+        gl.uniform2f(this.u_imageSize, this.renderResult.size.width, this.renderResult.size.height);
+        gl.uniform1i(this.u_cropEnabled, false);
+        gl.uniform2f(this.u_cropCenter, this.cropCenter.x, this.cropCenter.y);
+        gl.uniform2f(this.u_cropSize, this.cropSize.width, this.cropSize.height);
+        gl.uniform1f(this.u_cropRotation, this.cropRotation);
 
         gl.clearColor(0, 0, 0, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT);
@@ -113,68 +91,54 @@ export class Renderer {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
 	}
 
-	render() {
-		if (!this.hasImage) return;
-
-		// Cancel previously started renders
-		if (this.pendingRenderRAF) {
-			cancelAnimationFrame(this.pendingRenderRAF);
-			this.pendingRenderRAF = null;
-		}
-
-		this.pipeline.beginRender(this.tileSize, this.tileSize, this.showOriginal);
-		const startTime = performance.now();
-		const renderFrame = () => {
-		    const res = this.pipeline.renderSome(16);
-
-		    if (res) {
-		        this.displayTexture = res;
-		        console.log(performance.now() - startTime);
-		        this.present();
-		    }
-			else {
-		        this.pendingRenderRAF = requestAnimationFrame(renderFrame);
-		    }
-		};
-
-		this.pendingRenderRAF = requestAnimationFrame(renderFrame);
+	setCrop(cropEnabled, cropCenter, cropSize, cropRotation) {
+		this.cropEnabled = cropEnabled;
+		this.cropCenter = cropCenter;
+		this.cropSize = cropSize;
+		this.cropRotation = cropRotation;
+		this.present();
 	}
 
-	export() {
-		if (!this.hasImage) return;
-		this.pipeline.beginRender(this.tileSize, this.tileSize);
-		return this.pipeline.renderSome(0);
-	}
+	resetTransform(size = null) {
+		size = size ? size : this.renderResult
+		if (!size) return
 
-	resetTransform() {
-		if (!this.width || !this.height) return
-		
 		this.scale = Math.min(
-			this.canvas.width / this.width,
-			this.canvas.height / this.height
+			this.canvas.width / size.width,
+			this.canvas.height / size.height
 		);
 
-		this.offsetX = (this.canvas.width - this.width * this.scale) / 2
-		this.offsetY = (this.canvas.height - this.height * this.scale) / 2
+		this.offset.x = (this.canvas.width - size.width * this.scale) / 2
+		this.offset.y = (this.canvas.height - size.height * this.scale) / 2
 		this.present();
 	}
 
 	getMaxTextureSize() {
-    	const gl = this.gl;
-    	return gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    	return this.gl.getParameter(this.gl.MAX_TEXTURE_SIZE);
+    }
+
+    canvasToImage(canvasPos) {
+    	return {
+		    x: (canvasPos.x - this.offset.x) / this.scale,
+		    y: (canvasPos.y - this.offset.y) / this.scale,
+		};
     }
 
 	initEvents() {
         this.canvas.onwheel = (e) => {
             e.preventDefault();
 
+            if (this.interactionHandler?.onWheel?.(e, e.deltaY)) {
+			    return;
+			}
+
             const zoom = e.deltaY < 0 ? 1.1 : 0.9;
 
             const mx = e.offsetX;
             const my = e.offsetY;
 
-            this.offsetX = mx - (mx - this.offsetX) * zoom;
-            this.offsetY = my - (my - this.offsetY) * zoom;
+            this.offset.x = mx - (mx - this.offset.x) * zoom;
+            this.offset.y = my - (my - this.offset.y) * zoom;
 
             this.scale *= zoom;
 
@@ -182,9 +146,12 @@ export class Renderer {
         };
 
         this.canvas.addEventListener("mousedown", (e) => {
+        	if (this.interactionHandler?.onMouseDown?.(e, this.canvasToImage({x: e.offsetX, y: e.offsetY}))) {
+			    return;
+			}
             this.dragging = true;
-            this.lastX = e.clientX;
-            this.lastY = e.clientY;
+            this.lastPos.x = e.clientX;
+            this.lastPos.y = e.clientY;
         });
 
         window.addEventListener("mouseup", () => {
@@ -195,11 +162,11 @@ export class Renderer {
             if (!this.dragging) return;
             if (e.buttons === 0) return;
 
-            this.offsetX += e.clientX - this.lastX;
-            this.offsetY += e.clientY - this.lastY;
+            this.offset.x += e.clientX - this.lastPos.x;
+            this.offset.y += e.clientY - this.lastPos.y;
 
-            this.lastX = e.clientX;
-            this.lastY = e.clientY;
+            this.lastPos.x = e.clientX;
+            this.lastPos.y = e.clientY;
 
             this.present();
         });
@@ -214,32 +181,56 @@ export class Renderer {
     }
 }
 
-class ShaderPipeline {
-	constructor(gl, quadBuffer, vao, effects) {
+export class Renderer {
+	constructor(gl, quadBuffer, onRenderComplete) {
 		this.gl = gl;
 		this.quadBuffer = quadBuffer;
-		this.vao = vao;
-		this.effects = effects;
+		this.onRenderComplete = onRenderComplete;
 
+		this.extColorBufferFloat = gl.getExtension("EXT_color_buffer_float");
+		if (!this.extColorBufferFloat) {
+		    throw new Error("EXT_color_buffer_float not supported");
+		}
+
+		this.tileSize = Math.round(gl.getParameter(gl.MAX_TEXTURE_SIZE) / 16);
 		this.originalImageTexture = this.createTexture(gl.NEAREST);
+		this.resultTexture = this.createTexture(gl.NEAREST);
 
 	    this.buffers = [
 	    	this.createRenderTarget(),
 	    	this.createRenderTarget()
 	    ]
 
-	    for (const effect of effects) {
-	    	if (!('textureCache' in effect)) continue;
-	    	effect.textureCache = this.createTexture(gl.NEAREST);
+	    this.vao = gl.createVertexArray();
+		gl.bindVertexArray(this.vao);
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+		gl.enableVertexAttribArray(0);
+		gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
+		this.hasImage = false;
+		this.pendingRenderRAF = null;
+	}
+
+	setEffects(effects, vs) {
+		this.hasEffects = true;
+		this.effects = effects;
+		this.effects.forEach((effect) => { effect.makeGlProgram(this.gl, vs) });
+
+		// Create textures for effects with cache
+		for (const effect of this.effects) {
+	    	if (!('textureCache' in effect)) continue;
+	    	effect.textureCache = this.createTexture(this.gl.NEAREST);
 	    }
 	}
 
 	setImage(image) {
 		const gl = this.gl;
 
-		// Make a texture for the original image
+		// Resize the texture for the original and the result
 		gl.bindTexture(gl.TEXTURE_2D, this.originalImageTexture);
+	    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
+	    gl.bindTexture(gl.TEXTURE_2D, this.resultTexture);
 	    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
 
 	    // Resize the ping pong textures
@@ -263,8 +254,47 @@ class ShaderPipeline {
 		    );
 		}
 		
+		this.hasImage = true;
 		this.height = image.height;
 		this.width = image.width;
+	}
+
+	render(showOriginal = false) {
+		if (!this.hasImage) return null;
+		if (!this.hasEffects) showOriginal = true;
+
+		// Cancel previously started renders
+		if (this.pendingRenderRAF) {
+			cancelAnimationFrame(this.pendingRenderRAF);
+			this.pendingRenderRAF = null;
+		}
+
+		this.beginRender(this.tileSize, this.tileSize, showOriginal);
+		
+		let renderTime = 0;
+		let frames = 1;
+		const renderFrame = () => {
+			const startTime = performance.now();
+		    const res = this.renderSome(10);
+		    renderTime += performance.now() - startTime;
+
+		    if (res) {
+		        console.log(`Rendered in ${renderTime}ms over ${frames} frames`);
+		        this.onRenderComplete({texture: res, size: {width: this.width, height: this.height}});
+		    }
+			else {
+		        this.pendingRenderRAF = requestAnimationFrame(renderFrame);
+		        frames++;
+		    }
+		};
+		this.pendingRenderRAF = requestAnimationFrame(renderFrame);
+	}
+
+	export() {
+		if (!this.hasImage) return;
+
+		this.beginRender(this.tileSize, this.tileSize);
+		return this.renderSome(0);
 	}
 
 	beginRender(tileWidth, tileHeight, skipEffects = false) {
@@ -286,17 +316,17 @@ class ShaderPipeline {
 			}
 		}
 
-		console.log(this.activeEffects.map(e => e.constructor.name), this.currentEffectIdx);
+		console.log(`Rendering the pipeline: ${this.activeEffects.map(e => e.constructor.name)} starting at index ${this.currentEffectIdx}`);
 		
 		this.currentTileX = 0;
 		this.currentTileY = 0;
 		this.readBuffer = this.buffers[0];
 		this.writeBuffer = this.buffers[1];
-		this.gl.viewport(0, 0, this.width, this.height);
 	}
 
 	renderSome(frameBudgetMs = 0) {
 		const startTime = performance.now();
+		this.gl.viewport(0, 0, this.width, this.height);
 
 		while (true) {
 			if (frameBudgetMs > 0 && performance.now() - startTime > frameBudgetMs) {
@@ -305,10 +335,12 @@ class ShaderPipeline {
 
 		    // Rendering complete
 	        if (this.currentEffectIdx >= this.activeEffects.length) {
-	            return this.currentTexture;
+	        	if (this.currentEffectIdx === 0) return this.originalImageTexture;
+	        	this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.readBuffer.framebuffer);
+	            this.gl.bindTexture(this.gl.TEXTURE_2D, this.resultTexture);
+	            this.gl.copyTexSubImage2D(this.gl.TEXTURE_2D, 0, 0, 0, 0, 0, this.width, this.height);
+	            return this.resultTexture;
 	        }
-
-			// console.log(this.currentEffectIdx, this.currentTileX, this.currentTileY, performance.now() - startTime);
 
 			const tileWidth = Math.min(this.tileWidth, this.width - this.currentTileX);
 			const tileHeight = Math.min(this.tileHeight, this.height - this.currentTileY);
@@ -403,7 +435,11 @@ uniform sampler2D u_image;
 uniform float u_scale; 
 uniform vec2 u_offset; 
 uniform vec2 u_canvasSize; 
-uniform vec2 u_imageSize; 
+uniform vec2 u_imageSize;
+uniform bool u_cropEnabled;
+uniform vec2 u_cropCenter;
+uniform vec2 u_cropSize;
+uniform float u_cropRotation;
 
 void main() { 
 	vec2 screenPx = vec2(
@@ -413,10 +449,28 @@ void main() {
 	vec2 imagePx = (screenPx - u_offset) / u_scale; 
 	vec2 uv = imagePx / u_imageSize; 
 
+	// regualar image bounds
 	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { 
-		fragColor = vec4(0.0); return; 
+		fragColor = vec4(0.0); 
+		return; 
 	} 
 
+	// crop overlay
+	if (u_cropEnabled) {
+		vec2 local = imagePx - u_cropCenter;
+		float s = sin(-u_cropRotation);
+		float c = cos(-u_cropRotation);
+		local = vec2(local.x * c - local.y * s, local.x * s + local.y * c);
+		vec2 halfSize = u_cropSize * 0.5;
+		
+		if (!(abs(local.x) <= halfSize.x && abs(local.y) <= halfSize.y)) {
+			vec3 x = texture(u_image, uv).rgb;
+			fragColor = vec4(x * 0.5, 0.);
+			return;
+		}
+	}
+
+	// on the image
 	fragColor = texture(u_image, uv);
 }
 `

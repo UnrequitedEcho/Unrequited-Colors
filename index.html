@@ -14,26 +14,26 @@
     <div id="control-pane">
 
         <h1>Unrequited Colors</h1>
-        <div class="hints">
-            <p class="hint">
-                <b>Instructions</b><br>
-                Select an image<br>
-                Pick a palette<br>
-                Tweak temperature slider<br><br>
-                More on the <a href=github.com/UnrequitedEcho/Unrequited-Colors>Github Repo</a>
-            </p>
-            <p class="hint">
-                <b>Palette controls</b><br>
-                Left click: edit color<br>
-                Middle click: disable color<br>
-                Right click: remove color<br>
-            </p>
-        </div>
+
         <!-- File buttons -->
         <div class="button-row">
             <button id="openImage">Open Image</button>
             <button id="saveImage">Save Image</button>
             <button id="resetView">Reset View</button>
+        </div>
+
+        <hr>
+
+        <!-- Crop -->
+        <div>
+            <div class="sectionHeader">
+                <h2>Crop</h2>
+                <label class="switch">
+                    <input type="checkbox" id="crop-toggle" checked>
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+            <div id="crop"></div>
         </div>
 
         <hr>
