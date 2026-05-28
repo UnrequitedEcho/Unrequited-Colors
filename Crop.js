@@ -1,11 +1,14 @@
 export class Crop {
-	constructor(onChange, onEdit) {
+	constructor(onChange, onStartEdit, onStopEdit) {
 		this.onChange = () => {
 			this.clampToImageBounds();
 			const size = { width: this.ratio.width * this.scale, height: this.ratio.height * this.scale };
+			this.sizeSpan.textContent = `${Math.round(size.width)}x${Math.round(size.height)}`;
 			onChange(this.enabled, this.center, size, this.rotation);
 		}
-		this.onEdit = onEdit;
+		this.onStartEdit = onStartEdit;
+		this.onStopEdit = onStopEdit;
+		this.editing = false;
 		this.enabled = false;
 		this.scale = 1;
 		this.center = {x: 0, y: 0};
@@ -69,16 +72,35 @@ export class Crop {
 		);
 	}
 
-	createUI(root) {
-		const radioRow = document.createElement("div");
+	setRatio(ratio) {
+		this.ratio = ratio;
+		const scaleX = this.imageSize.width / this.ratio.width;
+		const scaleY = this.imageSize.height / this.ratio.height;
+		this.scale = Math.min(scaleX, scaleY);
+		this.onChange();
+	}
 
-		const editBtn = document.createElement("button");
-		editBtn.textContent = "Edit Crop";
-		editBtn.onclick = this.onEdit;
-		root.appendChild(editBtn);
+	createUI(root) {
+
+		this.editBtn = document.createElement("button");
+		this.editBtn.textContent = "Edit Crop";
+		this.editBtn.onclick = () => {
+			if (!this.editing) {
+				this.editBtn.classList.add("active");
+				this.onStartEdit();
+			}
+			else {
+				this.editBtn.classList.remove("active");
+				this.onStopEdit();
+			}
+			this.editing = !this.editing;
+		};
+		root.appendChild(this.editBtn);
 
 		// Radio Button Row
-		const aspectRatios = ['16:9', '4:3', '21:9', 'Custom'];
+		const radioRow = document.createElement("div");
+		radioRow.id = "radio-row";
+		const aspectRatios = ['Original', '16:9', '4:3', '21:9', 'Custom'];
 		for (const ratio of aspectRatios) {
 	        const label = document.createElement("label");
 	        label.className = "crop-radio";
@@ -93,12 +115,14 @@ export class Crop {
 	        	if (ratio === "Custom") {
 	        		customRatioContainer.style.display = "flex";
 	        	}
+	        	else if (ratio === "Original"){
+	        		this.setRatio(this.imageSize);
+	        	}
 	        	else { 
 	        		customRatioContainer.style.display = "none";
-	        		[this.ratio.width, this.ratio.height] = ratio.split(":").map(Number);
+	        		const newRatio = ratio.split(":").map(Number);
+	        		this.setRatio({width: newRatio[0], height: newRatio[1]});
 	        	}
-
-				this.onChange();
 	        };
 
 	        const text = document.createElement("span");
@@ -114,7 +138,7 @@ export class Crop {
 
 	    // Custom Ratio Row
 	    const customRatioContainer = document.createElement("div");
-	    customRatioContainer.className = "crop-custom";
+	    customRatioContainer.id = "crop-custom";
 	    customRatioContainer.style.display = "none";
 
 	    const widthInput = document.createElement("input");
@@ -131,13 +155,11 @@ export class Crop {
 	    heightInput.value = this.ratio.height;
 
 	    widthInput.oninput = () => {
-	        this.ratio.width = Number(widthInput.value);
-			this.onChange();
+	    	this.setRatio({width: Number(widthInput.value), height: this.ratio.height});
 	    };
 
 	    heightInput.oninput = () => {
-	        this.ratio.height = Number(heightInput.value);
-			this.onChange();
+	    	this.setRatio({width: this.ratio.width, height: Number(heightInput.value)})
 	    };
 
 	    customRatioContainer.appendChild(widthInput);
@@ -147,27 +169,58 @@ export class Crop {
 	    root.appendChild(customRatioContainer);
 
 	    // Angle row
-	    const angle = document.createElement("div");
-	    angle.className = "crop-angle";
+	    const angleSliderGroup = document.createElement("div");
+		angleSliderGroup.className = "slider-group";
 
-	    const label = document.createElement("label");
-	    label.textContent = "Angle";
+        // Header Row: label and value
+        const headerRow = document.createElement("div");
+        headerRow.className = "slider-headerRow";
+        const labelEl = document.createElement("label");
+        labelEl.textContent = "Angle";
+        headerRow.appendChild(labelEl);
+        const valueEl = document.createElement("span");
+        valueEl.textContent = 0;
+        headerRow.appendChild(valueEl);
 
-	    const input = document.createElement("input");
-	    input.type = "number";
-	    input.min = -45;
-	    input.max = 45;
-	    input.step = 0.1;
-	    input.value = this.rotation;
+        // SliderRow: slider resetbtn
+        const sliderRow = document.createElement("div");
+        sliderRow.className = "slider-sliderRow";
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.className = "slider";
+        slider.min = -45;
+        slider.max = 45;
+        slider.step = 0.1;
+        slider.value = 0;
+        sliderRow.appendChild(slider);
+        const resetBtn = document.createElement("button");
+        resetBtn.className = "slider-reset";
+        resetBtn.textContent = "⟲";
+        sliderRow.appendChild(resetBtn);
 
-	    input.oninput = () => {
-	        this.rotation = Number(input.value) * Math.PI / 180;
-	        this.onChange();
-	    };
+        // Events
+        slider.oninput = () => {
+            valueEl.textContent = slider.value;
+            this.rotation = slider.value * Math.PI / 180;
+            this.onChange();
+        }
 
-	    angle.appendChild(label);
-	    angle.appendChild(input);
+        resetBtn.onclick = () => {
+            slider.value = 0;
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+        };
 
-	    root.appendChild(angle);
+        angleSliderGroup.appendChild(headerRow);
+        angleSliderGroup.appendChild(sliderRow);
+        root.appendChild(angleSliderGroup);
+
+        const sizeRow = document.createElement("div");
+        sizeRow.id = "size-row";
+        const sizeLabel = document.createElement("label");
+        sizeLabel.textContent = "Final Size :";
+        sizeRow.appendChild(sizeLabel);
+	    this.sizeSpan = document.createElement("span");
+	    sizeRow.appendChild(this.sizeSpan);
+	    root.appendChild(sizeRow);
 	}
 }

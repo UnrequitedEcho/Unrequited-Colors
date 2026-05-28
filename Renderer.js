@@ -36,7 +36,6 @@ export class DisplayView {
         this.u_offset = gl.getUniformLocation(this.displayProgram, "u_offset");
         this.u_canvasSize = gl.getUniformLocation(this.displayProgram, "u_canvasSize");
         this.u_imageSize = gl.getUniformLocation(this.displayProgram, "u_imageSize");
-        this.u_cropEnabled = gl.getUniformLocation(this.displayProgram, "u_cropEnabled");
         this.u_cropCenter = gl.getUniformLocation(this.displayProgram, "u_cropCenter");
         this.u_cropSize = gl.getUniformLocation(this.displayProgram, "u_cropSize");
         this.u_cropRotation = gl.getUniformLocation(this.displayProgram, "u_cropRotation");
@@ -44,9 +43,8 @@ export class DisplayView {
         // Display state
         this.scale = 1;
 		this.offset = {x: 0, y: 0};
-		this.cropEnabled = false;
-		this.cropCenter = {x: 0, y: 0};
-		this.cropSize = {width: 0, height: 0};
+		this.cropCenter = null;
+		this.cropSize = null;
 		this.cropRotation = 0;
 
 		// Interaction state
@@ -61,9 +59,11 @@ export class DisplayView {
 		if (renderResult) this.renderResult = renderResult;
 		if (!this.renderResult) return;
 
-		const gl = this.gl;
+		const halfSize = { width: this.renderResult.size.width / 2, height: this.renderResult.size.height / 2 };
+		if (!this.cropCenter) this.cropCenter = {x: halfSize.width, y: halfSize.height};
+		if (!this.cropSize) this.cropSize = this.renderResult.size;
 
-		console.log(this.cropEnabled, this.cropCenter, this.cropSize, this.cropRotation);
+		const gl = this.gl;
 
 	    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
 	    gl.enableVertexAttribArray(0);
@@ -92,15 +92,23 @@ export class DisplayView {
 	}
 
 	setCrop(cropEnabled, cropCenter, cropSize, cropRotation) {
-		this.cropEnabled = cropEnabled;
-		this.cropCenter = cropCenter;
-		this.cropSize = cropSize;
-		this.cropRotation = cropRotation;
+		if (!this.renderResult) return;
+		
+		if (cropEnabled) {
+			this.cropCenter = cropCenter;
+			this.cropSize = cropSize;
+			this.cropRotation = cropRotation;
+		}
+		else {
+			this.cropCenter = { x: this.renderResult.size.width / 2, y: this.renderResult.size.height / 2 };
+			this.cropSize = { width: this.renderResult.size.width, height: this.renderResult.size.height };
+			this.cropRotation = 0;
+		}
 		this.present();
 	}
 
 	resetTransform(size = null) {
-		size = size ? size : this.renderResult
+		if (!size) size = this.renderResult.size;
 		if (!size) return
 
 		this.scale = Math.min(
@@ -380,7 +388,6 @@ uniform float u_scale;
 uniform vec2 u_offset; 
 uniform vec2 u_canvasSize; 
 uniform vec2 u_imageSize;
-uniform bool u_cropEnabled;
 uniform vec2 u_cropCenter;
 uniform vec2 u_cropSize;
 uniform float u_cropRotation;
@@ -390,31 +397,36 @@ void main() {
 	    v_uv.x * u_canvasSize.x,
 	    (1.0 - v_uv.y) * u_canvasSize.y
 	);
-	vec2 imagePx = (screenPx - u_offset) / u_scale; 
-	vec2 uv = imagePx / u_imageSize; 
+	vec2 imagePx = (screenPx - u_offset) / u_scale;
 
-	// regualar image bounds
-	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { 
-		fragColor = vec4(0.0); 
-		return; 
-	} 
+	vec2 samplePx = imagePx;
 
-	// crop overlay
-	if (u_cropEnabled) {
-		vec2 local = imagePx - u_cropCenter;
-		float s = sin(-u_cropRotation);
-		float c = cos(-u_cropRotation);
-		local = vec2(local.x * c - local.y * s, local.x * s + local.y * c);
-		vec2 halfSize = u_cropSize * 0.5;
-		
-		if (!(abs(local.x) <= halfSize.x && abs(local.y) <= halfSize.y)) {
-			vec3 x = texture(u_image, uv).rgb;
-			fragColor = vec4(x * 0.5, 0.);
-			return;
-		}
+	vec2 local = imagePx - u_cropCenter;
+	vec2 halfSize = u_cropSize * 0.5;
+	
+	bool inside = abs(local.x) <= halfSize.x && abs(local.y) <= halfSize.y;
+	
+	float s = sin(u_cropRotation);
+	float c = cos(u_cropRotation);
+	vec2 rotated = vec2(local.x * c - local.y * s, local.x * s + local.y * c);
+	
+	samplePx = rotated + u_cropCenter;
+	vec2 sampleUV = samplePx / u_imageSize;
+	
+	// Pixels outside the image
+	if (sampleUV.x < 0. || sampleUV.x > 1. || sampleUV.y < 0. || sampleUV.y > 1.) {
+		fragColor = vec4(0.);
+		return;
 	}
 
-	// on the image
-	fragColor = texture(u_image, uv);
+	vec4 color = texture(u_image, sampleUV);
+
+	// pixels cropped
+	if (!inside) {
+		color.rgb *= 0.2;
+	}
+
+	fragColor = color;
+	return;
 }
 `

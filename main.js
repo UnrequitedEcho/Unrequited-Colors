@@ -63,15 +63,26 @@ palette.createUI(paletteContainer, presets);
 const cropContainer = document.getElementById("crop");
 const crop = new Crop(
     (...args) => { displayView.setCrop(...args); },
-    () => { eventHandler.editingCrop = true; }
+    () => { eventHandler.editingCrop = true; canvas.style.cursor = "crosshair"; },
+    () => { eventHandler.editingCrop = false; canvas.style.cursor = ""; },
+
 );
+crop.createUI(cropContainer);
+
 const cropToggle = document.getElementById("crop-toggle");
-cropToggle.checked = false;
 cropToggle.onchange = () => { 
-    crop.enabled = cropToggle.checked;
+    if (cropToggle.checked) {
+        cropContainer.classList.remove("disabled");
+        crop.enabled = true;
+    }
+    else {
+        cropContainer.classList.add("disabled");
+        crop.enabled = false;
+    }
     crop.onChange();
 };
-crop.createUI(cropContainer);
+cropToggle.checked = false;
+cropToggle.onchange();
 
 // -----------------------------------------------------------------
 // Import Button

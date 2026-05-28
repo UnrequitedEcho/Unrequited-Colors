@@ -79,12 +79,6 @@ export class EventHandler {
 		    dv.resetTransform();
 		    dv.present();
 		});
-
-		window.addEventListener("keydown", (e) => {
-			if (e.key === "Escape" && this.editingCrop) {
-				this.editingCrop = false;
-			}
-		})
     }
 
     getCanvasPos(e) {
