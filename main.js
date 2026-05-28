@@ -128,6 +128,9 @@ openImageBtn.onclick = () => {
         crop.setImage({width: img.width, height: img.height});
         displayView.resetTransform({width: img.width, height: img.height});
         renderer.render();
+
+        document.getElementById("image-name").textContent = imagename;
+        document.getElementById("image-size").textContent = `${img.width}x${img.height}`
     };
 
     input.click();
@@ -160,6 +163,11 @@ resetBtn.onclick = () => {
     displayView.resetTransform();
 }
 
+// -----------------------------------------------------------------
+// Events
+// -----------------------------------------------------------------
+const eventHandler = new EventHandler(canvas, displayView, crop);
+
 // DEBUG: AutoLoad Debug Image
 
 async function importImageFromUrl(url) {
@@ -180,8 +188,5 @@ renderer.setImage(img);
 crop.setImage({width: img.width, height: img.height});
 displayView.resetTransform({width: img.width, height: img.height});
 renderer.render();
-
-// -----------------------------------------------------------------
-// Events
-// -----------------------------------------------------------------
-const eventHandler = new EventHandler(canvas, displayView, crop);
+document.getElementById("image-name").textContent = "debug";
+document.getElementById("image-size").textContent = `${img.width}x${img.height}`;

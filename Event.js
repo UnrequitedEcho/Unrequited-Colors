@@ -17,13 +17,13 @@ export class EventHandler {
         this.canvas.onwheel = (e) => {
             e.preventDefault();
 
-            const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-
             if (this.editingCrop) {
+            	const zoom = e.deltaY < 0 ? 1.01 : 0.99;
 			    this.crop.scale *= zoom;
 			    this.crop.onChange();
 			}
 			else {
+				const zoom = e.deltaY < 0 ? 1.1 : 0.9;
 				const mx = e.offsetX;
 	            const my = e.offsetY;
 

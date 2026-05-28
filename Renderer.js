@@ -93,7 +93,7 @@ export class DisplayView {
 
 	setCrop(cropEnabled, cropCenter, cropSize, cropRotation) {
 		if (!this.renderResult) return;
-		
+
 		if (cropEnabled) {
 			this.cropCenter = cropCenter;
 			this.cropSize = cropSize;
@@ -142,7 +142,7 @@ export class Renderer {
 
 		this.tileSize = Math.round(gl.getParameter(gl.MAX_TEXTURE_SIZE) / 16);
 		this.originalImageTexture = this.createTexture(gl.NEAREST);
-		this.resultTexture = this.createTexture(gl.NEAREST);
+		this.resultTexture = this.createTexture(gl.LINEAR);
 
 	    this.buffers = [
 	    	this.createRenderTarget(),
