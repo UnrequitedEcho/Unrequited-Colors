@@ -1,31 +1,24 @@
-import { Renderer, ShaderPipeline } from "./ShaderPipeline.js";
+import { DisplayView, Renderer } from "./Renderer.js";
 import * as ShaderPasses from './ShaderPasses.js';
+import { EventHandler } from "./Event.js";
 import { Palette } from "./Palette.js";
-import { Viewport } from "./Viewport.js";
+import { Crop } from "./Crop.js";
 
 // -----------------------------------------------------------------
-// Viewport
+// Effects
 // -----------------------------------------------------------------
 const canvas = document.getElementById("preview-canvas");
-const viewport = new Viewport(canvas);
-
-// -----------------------------------------------------------------
-// Shader Pipeline
-// -----------------------------------------------------------------
-
+const displayView = new DisplayView(canvas);
 const renderer = new Renderer(
-    1000, 
-    (image, logicalWidth, logicalHeight) => {
-        viewport.setImage(image, logicalWidth, logicalHeight);
-        viewport.draw();
-    }
-);
+    displayView.gl, displayView.quadBuffer, 
+    (res) => { displayView.present(res); }
+); 
 
 const effectsConfig = {  
     rgbToOklab:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './rgbToOklab.frag', },  
     bilateralFilter: { Object: ShaderPasses.BilateralFilterEffect,      enabled: false, path: './bilateral.frag',  },  
     colorAdjust:     { Object: ShaderPasses.ColorAdjustEffect,          enabled: false, path: './colors.frag',     },
-    rbf:             { Object: ShaderPasses.RadialBasisFunctionEffect,  enabled: true,  path: './rfb.frag',        },  
+    rbf:             { Object: ShaderPasses.RadialBasisFunctionEffect,  enabled: true,  path: './rbf.frag',        },  
     lumaGrain:       { Object: ShaderPasses.LumaGrainEffect,            enabled: false, path: './dither.frag',     },
     oklabToRgb:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './oklabToRgb.frag', },  
 };
@@ -34,26 +27,23 @@ const effectsContainer = document.getElementById("effects");
 
 let effects = {}
 for (const [id, config] of Object.entries(effectsConfig)) {
-    const effect = new config.Object(config.enabled);
+    const effect = await config.Object.create(config.enabled, config.path);
     if (effect.makeUI) effect.makeUI(
         effectsContainer, 
-        () => { renderer.render(); }, 
-        () => { renderer.renderLowRes(); },
+        () => { renderer.render(); } 
     );
-    //const shaderSrc = await fetch(`${config.path}?t=${Date.now()}`).then(r => r.text());
-    const shaderSrc = await fetch(config.path).then(r => r.text());
-    renderer.addPass(id, effect, shaderSrc);
     effects[id] = effect;
 }
+renderer.setEffects(Object.values(effects), displayView.vs);
 
 const globalEffectsToggle = document.getElementById("global-effects-toggle");
 globalEffectsToggle.onchange = () => {
     if (globalEffectsToggle.checked) {
         effectsContainer.classList.remove("disabled");
-        renderer.setGlobalEffectsStatus(false);
+        renderer.render();
     } else {
         effectsContainer.classList.add("disabled");
-        renderer.setGlobalEffectsStatus(true);
+        renderer.render(true);
     }
 }
 
@@ -66,6 +56,33 @@ const palette = new Palette((colors) => {
     effects.rbf.setPalette(colors);
 });
 palette.createUI(paletteContainer, presets);
+
+// -----------------------------------------------------------------
+// Crop
+// -----------------------------------------------------------------
+const cropContainer = document.getElementById("crop");
+const crop = new Crop(
+    (...args) => { displayView.setCrop(...args); },
+    () => { eventHandler.editingCrop = true; canvas.style.cursor = "crosshair"; },
+    () => { eventHandler.editingCrop = false; canvas.style.cursor = ""; },
+
+);
+crop.createUI(cropContainer);
+
+const cropToggle = document.getElementById("crop-toggle");
+cropToggle.onchange = () => { 
+    if (cropToggle.checked) {
+        cropContainer.classList.remove("disabled");
+        crop.enabled = true;
+    }
+    else {
+        cropContainer.classList.add("disabled");
+        crop.enabled = false;
+    }
+    crop.onChange();
+};
+cropToggle.checked = false;
+cropToggle.onchange();
 
 // -----------------------------------------------------------------
 // Import Button
@@ -108,9 +125,12 @@ openImageBtn.onclick = () => {
         const img = await importImage(file);
 
         renderer.setImage(img);
+        crop.setImage({width: img.width, height: img.height});
+        displayView.resetTransform({width: img.width, height: img.height});
         renderer.render();
-        viewport.resetTransform();
-        viewport.draw();
+
+        document.getElementById("image-name").textContent = imagename;
+        document.getElementById("image-size").textContent = `${img.width}x${img.height}`
     };
 
     input.click();
@@ -140,26 +160,33 @@ saveBtn.onclick = () => {
 // -----------------------------------------------------------------
 const resetBtn = document.getElementById("resetView")
 resetBtn.onclick = () => {
-    viewport.resetTransform();
-    viewport.draw();
+    displayView.resetTransform();
 }
+
+// -----------------------------------------------------------------
+// Events
+// -----------------------------------------------------------------
+const eventHandler = new EventHandler(canvas, displayView, crop);
 
 // DEBUG: AutoLoad Debug Image
 
-// async function importImageFromUrl(url) {
-//     const img = new Image();
-//     img.src = url;
-//     await img.decode();
+async function importImageFromUrl(url) {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
 
-//     const canvas = document.createElement("canvas");
-//     canvas.width = img.width;
-//     canvas.height = img.height;
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
 
-//     canvas.getContext("2d").drawImage(img, 0, 0);
+    canvas.getContext("2d").drawImage(img, 0, 0);
 
-//     return canvas;
-// }
-// const img = await importImageFromUrl('./debug.jpeg');
-// renderer.setImage(img);
-// renderer.render();
-
+    return canvas;
+}
+const img = await importImageFromUrl('./debug.jpeg');
+renderer.setImage(img);
+crop.setImage({width: img.width, height: img.height});
+displayView.resetTransform({width: img.width, height: img.height});
+renderer.render();
+document.getElementById("image-name").textContent = "debug";
+document.getElementById("image-size").textContent = `${img.width}x${img.height}`;

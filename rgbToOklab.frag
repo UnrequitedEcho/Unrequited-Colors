@@ -1,6 +1,8 @@
+#version 300 es
 precision highp float;
 
-varying vec2 v_uv;
+in vec2 v_uv;
+out vec4 fragColor;
 uniform sampler2D u_image;
 
 // https://bottosson.github.io/posts/oklab
@@ -29,8 +31,8 @@ vec3 rgb_to_oklab(vec3 c) {
 }
 
 void main() {
-    vec3 rgb = texture2D(u_image, v_uv).rgb;
+    vec3 rgb = texture(u_image, v_uv).rgb;
     vec3 lab = rgb_to_oklab(rgb);
 
-    gl_FragColor = vec4(lab, 1.0);
+    fragColor = vec4(lab, 1.0);
 }

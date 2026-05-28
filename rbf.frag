@@ -1,6 +1,8 @@
+#version 300 es
 precision highp float;
 
-varying vec2 v_uv;
+in vec2 v_uv;
+out vec4 fragColor;
 uniform sampler2D u_image;
 uniform vec3 u_palette[32];
 uniform int u_paletteSize;
@@ -8,7 +10,7 @@ uniform float u_sigma;
 uniform float u_chromaBias;
 
 void main() {
-    vec3 c = texture2D(u_image, v_uv).xyz;
+    vec3 c = texture(u_image, v_uv).xyz;
 
     // compute the distances for each color in the palette
     float d[32];
@@ -38,5 +40,5 @@ void main() {
     
     result /= max(sum_w, 1e-9);
 
-    gl_FragColor = vec4(result, 1.);
+    fragColor = vec4(result, 1.);
 }

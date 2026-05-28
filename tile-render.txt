@@ -1,0 +1,154 @@
+Renderer + Viewport share a single WebGL2 context.
+
+The renderer owns:
+- sourceTextureFull
+- sourceTexturePreview
+- outputTexture
+- fullscreen pingpong FBOs
+- tile-sized pingpong FBOs
+- shader passes
+- viewport transform state
+
+Rendering is progressive and interruptible.
+
+--------------------------------------------------
+Frame Loop
+--------------------------------------------------
+
+Persistent renderer state:
+
+chunkX, chunkY;
+currentPass;
+
+chunkSize;
+maxChunkX, maxChunkY;
+maxPass;
+
+isDirty;
+isInteracting;
+
+--------------------------------------------------
+
+function frame() {
+
+    //--------------------------------------------------
+    // Interactive Preview Rendering
+    //--------------------------------------------------
+
+    if (isInteracting) {
+
+        // Reset progressive full render state
+        currentPass = 0;
+        chunkX = 0;
+        chunkY = 0;
+
+        // Run full pipeline on preview texture
+        processPreviewPipeline();
+
+        isDirty = true;
+    }
+
+    //--------------------------------------------------
+    // Progressive Full Resolution Rendering
+    //--------------------------------------------------
+
+    else if (isDirty) {
+
+        const startTime = performance.now();
+
+        while (performance.now() - startTime < frameBudgetMs) {
+
+            //--------------------------------------------------
+            // Configure tile rendering region
+            //--------------------------------------------------
+
+            gl.enable(gl.SCISSOR_TEST);
+
+            gl.viewport(
+                chunkX,
+                chunkY,
+                chunkSize,
+                chunkSize
+            );
+
+            gl.scissor(
+                chunkX,
+                chunkY,
+                chunkSize,
+                chunkSize
+            );
+
+            //--------------------------------------------------
+            // Execute current pass on current tile
+            //--------------------------------------------------
+
+            processTile(
+                currentPass,
+                chunkX,
+                chunkY
+            );
+
+            //--------------------------------------------------
+            // Advance tile position
+            //--------------------------------------------------
+
+            chunkX += chunkSize;
+
+            if (chunkX >= maxChunkX) {
+                chunkX = 0;
+                chunkY += chunkSize;
+            }
+
+            //--------------------------------------------------
+            // Advance pass
+            //--------------------------------------------------
+
+            if (chunkY >= maxChunkY) {
+
+                chunkY = 0;
+                currentPass += 1;
+            }
+
+            //--------------------------------------------------
+            // Rendering complete
+            //--------------------------------------------------
+
+            if (currentPass >= maxPass) {
+
+                isDirty = false;
+                break;
+            }
+        }
+    }
+
+    //--------------------------------------------------
+    // Final Display Pass
+    //--------------------------------------------------
+
+    drawViewport(outputTexture);
+
+    requestAnimationFrame(frame);
+}
+
+--------------------------------------------------
+Pipeline Notes
+--------------------------------------------------
+
+- Pass 0 reads from the immutable source texture.
+
+- Intermediate passes read/write from fullscreen
+  pingpong FBOs.
+
+- Final pass writes into outputTexture.
+
+- Scissor + viewport restrict rasterization to the
+  current tile.
+
+- Shaders still freely sample the entire source
+  texture when needed.
+
+- The viewport shader is always realtime and only:
+    - samples outputTexture
+    - applies pan/zoom transforms
+    - renders to the visible canvas
+
