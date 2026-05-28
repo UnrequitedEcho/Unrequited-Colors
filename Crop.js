@@ -1,36 +1,81 @@
 export class Crop {
-	constructor(onChange) {
+	constructor(onChange, onEdit) {
 		this.onChange = () => {
 			this.clampToImageBounds();
-			onChange(this.cropEnabled, this.cropCenter, this.cropSize, this.cropRotation);
+			const size = { width: this.ratio.width * this.scale, height: this.ratio.height * this.scale };
+			onChange(this.enabled, this.center, size, this.rotation);
 		}
-		this.cropEnabled = false;
-		this.cropCenter = {x: 0, y: 0};
-		this.cropSize = {width: 0, height: 0};
-		this.cropRotation = 0;
-		this.cropRatio = {width: 0, height: 0};
+		this.onEdit = onEdit;
+		this.enabled = false;
+		this.scale = 1;
+		this.center = {x: 0, y: 0};
+		this.rotation = 0;
+		this.ratio = {width: 16, height: 9};
+		this.imageSize = {width: 0, height: 0};
 	}
 
-	onMouseDown(imagePos) {
-		this.u_cropCenter = imagePos;
-		this.onChange();
-		return true;
-	}
-
-	onWheel(deltaY) {
-		const zoom = deltaY < 0 ? 1.1 : 0.9;
-		this.cropSize.width *= zoom;
-		this.cropSize.height *= zoom;
-		this.onChange();
-		return true;
+	setImage(size) {
+		this.imageSize = size;
+		this.center = { x: Math.round(size.width / 2), y: Math.round(size.height / 2) };
+		this.scale = size.width / this.ratio.width;
+		if (this.enabled) this.onChange;
 	}
 
 	clampToImageBounds() {
+		const rw = this.ratio.width;
+		const rh = this.ratio.height;
 
+		const angle = this.rotation;
+
+		const cos = Math.abs(Math.cos(angle));
+		const sin = Math.abs(Math.sin(angle));
+
+		const imageW = this.imageSize.width;
+		const imageH = this.imageSize.height;
+
+		// Current crop dimensions
+		let w = rw * this.scale;
+		let h = rh * this.scale;
+
+		// Rotated AABB half extents
+		let halfW = (w * cos + h * sin) / 2;
+		let halfH = (w * sin + h * cos) / 2;
+
+		// If crop cannot possibly fit, shrink scale
+		const maxScaleX = imageW / (rw * cos + rh * sin);
+		const maxScaleY = imageH / (rw * sin + rh * cos);
+
+		const maxScale = Math.min(maxScaleX, maxScaleY);
+
+		if (this.scale > maxScale) {
+			this.scale = maxScale;
+
+			w = rw * this.scale;
+			h = rh * this.scale;
+
+			halfW = (w * cos + h * sin) / 2;
+			halfH = (w * sin + h * cos) / 2;
+		}
+
+		// Clamp center
+		this.center.x = Math.max(
+			halfW,
+			Math.min(imageW - halfW, this.center.x)
+		);
+
+		this.center.y = Math.max(
+			halfH,
+			Math.min(imageH - halfH, this.center.y)
+		);
 	}
 
 	createUI(root) {
 		const radioRow = document.createElement("div");
+
+		const editBtn = document.createElement("button");
+		editBtn.textContent = "Edit Crop";
+		editBtn.onclick = this.onEdit;
+		root.appendChild(editBtn);
 
 		// Radio Button Row
 		const aspectRatios = ['16:9', '4:3', '21:9', 'Custom'];
@@ -45,19 +90,19 @@ export class Crop {
 	        input.checked = ratio === '16:9';
 
 	        input.onchange = () => {
-	        	if (ratio.id === "custom") {
+	        	if (ratio === "Custom") {
 	        		customRatioContainer.style.display = "flex";
 	        	}
 	        	else { 
 	        		customRatioContainer.style.display = "none";
-	        		[this.cropRatio.width, this.cropRatio.height] = ratio.id.split(":").map(Number);
+	        		[this.ratio.width, this.ratio.height] = ratio.split(":").map(Number);
 	        	}
 
 				this.onChange();
 	        };
 
 	        const text = document.createElement("span");
-	        text.textContent = ratio.label;
+	        text.textContent = ratio;
 
 	        label.appendChild(input);
 	        label.appendChild(text);
@@ -75,7 +120,7 @@ export class Crop {
 	    const widthInput = document.createElement("input");
 	    widthInput.type = "number";
 	    widthInput.min = 1;
-	    widthInput.value = this.cropRatio.width;
+	    widthInput.value = this.ratio.width;
 
 	    const separator = document.createElement("span");
 	    separator.textContent = ":";
@@ -83,15 +128,15 @@ export class Crop {
 	    const heightInput = document.createElement("input");
 	    heightInput.type = "number";
 	    heightInput.min = 1;
-	    heightInput.value = this.cropRatio.height;
+	    heightInput.value = this.ratio.height;
 
 	    widthInput.oninput = () => {
-	        this.cropRatio.width = Number(widthInput.value);
+	        this.ratio.width = Number(widthInput.value);
 			this.onChange();
 	    };
 
 	    heightInput.oninput = () => {
-	        this.cropRatio.height = Number(heightInput.value);
+	        this.ratio.height = Number(heightInput.value);
 			this.onChange();
 	    };
 
@@ -113,11 +158,11 @@ export class Crop {
 	    input.min = -45;
 	    input.max = 45;
 	    input.step = 0.1;
-	    input.value = this.cropRotation;
+	    input.value = this.rotation;
 
 	    input.oninput = () => {
-	        this.cropRotation = Number(input.value);
-	        onChange();
+	        this.rotation = Number(input.value) * Math.PI / 180;
+	        this.onChange();
 	    };
 
 	    angle.appendChild(label);

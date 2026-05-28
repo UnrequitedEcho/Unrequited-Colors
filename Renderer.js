@@ -55,8 +55,6 @@ export class DisplayView {
 		this.lastPos = {x: 0, y: 0};
 
 		this.renderResult;
-
-		this.initEvents();
 	}
 
 	present(renderResult) {
@@ -64,6 +62,8 @@ export class DisplayView {
 		if (!this.renderResult) return;
 
 		const gl = this.gl;
+
+		console.log(this.cropEnabled, this.cropCenter, this.cropSize, this.cropRotation);
 
 	    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
 	    gl.enableVertexAttribArray(0);
@@ -80,7 +80,7 @@ export class DisplayView {
         gl.uniform2f(this.u_offset, this.offset.x, this.offset.y);
         gl.uniform2f(this.u_canvasSize, this.canvas.width, this.canvas.height);
         gl.uniform2f(this.u_imageSize, this.renderResult.size.width, this.renderResult.size.height);
-        gl.uniform1i(this.u_cropEnabled, false);
+        gl.uniform1i(this.u_cropEnabled, this.cropEnabled);
         gl.uniform2f(this.u_cropCenter, this.cropCenter.x, this.cropCenter.y);
         gl.uniform2f(this.u_cropSize, this.cropSize.width, this.cropSize.height);
         gl.uniform1f(this.u_cropRotation, this.cropRotation);
@@ -113,71 +113,11 @@ export class DisplayView {
 		this.present();
 	}
 
-	getMaxTextureSize() {
-    	return this.gl.getParameter(this.gl.MAX_TEXTURE_SIZE);
-    }
-
     canvasToImage(canvasPos) {
     	return {
 		    x: (canvasPos.x - this.offset.x) / this.scale,
 		    y: (canvasPos.y - this.offset.y) / this.scale,
 		};
-    }
-
-	initEvents() {
-        this.canvas.onwheel = (e) => {
-            e.preventDefault();
-
-            if (this.interactionHandler?.onWheel?.(e, e.deltaY)) {
-			    return;
-			}
-
-            const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-
-            const mx = e.offsetX;
-            const my = e.offsetY;
-
-            this.offset.x = mx - (mx - this.offset.x) * zoom;
-            this.offset.y = my - (my - this.offset.y) * zoom;
-
-            this.scale *= zoom;
-
-            this.present();
-        };
-
-        this.canvas.addEventListener("mousedown", (e) => {
-        	if (this.interactionHandler?.onMouseDown?.(e, this.canvasToImage({x: e.offsetX, y: e.offsetY}))) {
-			    return;
-			}
-            this.dragging = true;
-            this.lastPos.x = e.clientX;
-            this.lastPos.y = e.clientY;
-        });
-
-        window.addEventListener("mouseup", () => {
-            this.dragging = false;
-        });
-
-        window.addEventListener("mousemove", (e) => {
-            if (!this.dragging) return;
-            if (e.buttons === 0) return;
-
-            this.offset.x += e.clientX - this.lastPos.x;
-            this.offset.y += e.clientY - this.lastPos.y;
-
-            this.lastPos.x = e.clientX;
-            this.lastPos.y = e.clientY;
-
-            this.present();
-        });
-
-        window.addEventListener("resize", () => {
-		    this.canvas.width = this.canvas.clientWidth;
-		    this.canvas.height = this.canvas.clientHeight;
-
-		    this.resetTransform();
-		    this.present();
-		});
     }
 }
 
@@ -296,6 +236,10 @@ export class Renderer {
 		this.beginRender(this.tileSize, this.tileSize);
 		return this.renderSome(0);
 	}
+
+	getMaxTextureSize() {
+    	return this.gl.getParameter(this.gl.MAX_TEXTURE_SIZE);
+    }
 
 	beginRender(tileWidth, tileHeight, skipEffects = false) {
 		this.tileWidth = tileWidth > this.width ? this.width : tileWidth;

@@ -1,5 +1,6 @@
 import { DisplayView, Renderer } from "./Renderer.js";
 import * as ShaderPasses from './ShaderPasses.js';
+import { EventHandler } from "./Event.js";
 import { Palette } from "./Palette.js";
 import { Crop } from "./Crop.js";
 
@@ -36,7 +37,7 @@ for (const [id, config] of Object.entries(effectsConfig)) {
 renderer.setEffects(Object.values(effects), displayView.vs);
 
 const globalEffectsToggle = document.getElementById("global-effects-toggle");
-globalEffectsToggle.onchange = async () => {
+globalEffectsToggle.onchange = () => {
     if (globalEffectsToggle.checked) {
         effectsContainer.classList.remove("disabled");
         renderer.render();
@@ -60,10 +61,16 @@ palette.createUI(paletteContainer, presets);
 // Crop
 // -----------------------------------------------------------------
 const cropContainer = document.getElementById("crop");
-const crop = new Crop((...args) => {
-    displayView.setCrop(...args);
-});
-//displayView.interactionHandler = crop;
+const crop = new Crop(
+    (...args) => { displayView.setCrop(...args); },
+    () => { eventHandler.editingCrop = true; }
+);
+const cropToggle = document.getElementById("crop-toggle");
+cropToggle.checked = false;
+cropToggle.onchange = () => { 
+    crop.enabled = cropToggle.checked;
+    crop.onChange();
+};
 crop.createUI(cropContainer);
 
 // -----------------------------------------------------------------
@@ -74,7 +81,7 @@ async function importImage(file) {
     img.src = URL.createObjectURL(file);
     await img.decode();
 
-    const maxTextureSize = displayView.getMaxTextureSize();
+    const maxTextureSize = renderer.getMaxTextureSize();
     const canvas = document.createElement("canvas");;
     let scale = 1;
 
@@ -107,6 +114,7 @@ openImageBtn.onclick = () => {
         const img = await importImage(file);
 
         renderer.setImage(img);
+        crop.setImage({width: img.width, height: img.height});
         displayView.resetTransform({width: img.width, height: img.height});
         renderer.render();
     };
@@ -158,5 +166,11 @@ async function importImageFromUrl(url) {
 }
 const img = await importImageFromUrl('./debug.jpeg');
 renderer.setImage(img);
+crop.setImage({width: img.width, height: img.height});
 displayView.resetTransform({width: img.width, height: img.height});
 renderer.render();
+
+// -----------------------------------------------------------------
+// Events
+// -----------------------------------------------------------------
+const eventHandler = new EventHandler(canvas, displayView, crop);
