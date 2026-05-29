@@ -211,6 +211,21 @@ select {
 #image-info {
     display: flex;
     justify-content: space-between;
+    white-space: nowrap;
+    gap: 8px;
+
+    span {
+        background: #222;
+        border-radius: 4px;
+        padding: 6px 10px;
+        border: 1px solid #3a3a3a;
+        font-size: 11px;
+    }
+
+    #image-name {
+        flex: 1 1 auto;
+        overflow: auto;
+    }
 }
 
 #effects {

@@ -43,14 +43,10 @@ export class DisplayView {
         // Display state
         this.scale = 1;
 		this.offset = {x: 0, y: 0};
+		this.cropEnabled = false;
 		this.cropCenter = null;
 		this.cropSize = null;
 		this.cropRotation = 0;
-
-		// Interaction state
-		this.interactionHandler = null;
-		this.dragging = false;
-		this.lastPos = {x: 0, y: 0};
 
 		this.renderResult;
 	}
@@ -60,8 +56,9 @@ export class DisplayView {
 		if (!this.renderResult) return;
 
 		const halfSize = { width: this.renderResult.size.width / 2, height: this.renderResult.size.height / 2 };
-		if (!this.cropCenter) this.cropCenter = {x: halfSize.width, y: halfSize.height};
-		if (!this.cropSize) this.cropSize = this.renderResult.size;
+		const cropCenter = this.cropEnabled ? this.cropCenter : {x: halfSize.width, y: halfSize.height};
+		const cropSize = this.cropEnabled ? this.cropSize : this.renderResult.size;
+		const cropRot = this.cropEnabled ? this.cropRotation : 0;
 
 		const gl = this.gl;
 
@@ -80,10 +77,9 @@ export class DisplayView {
         gl.uniform2f(this.u_offset, this.offset.x, this.offset.y);
         gl.uniform2f(this.u_canvasSize, this.canvas.width, this.canvas.height);
         gl.uniform2f(this.u_imageSize, this.renderResult.size.width, this.renderResult.size.height);
-        gl.uniform1i(this.u_cropEnabled, this.cropEnabled);
-        gl.uniform2f(this.u_cropCenter, this.cropCenter.x, this.cropCenter.y);
-        gl.uniform2f(this.u_cropSize, this.cropSize.width, this.cropSize.height);
-        gl.uniform1f(this.u_cropRotation, this.cropRotation);
+        gl.uniform2f(this.u_cropCenter, cropCenter.x, cropCenter.y);
+        gl.uniform2f(this.u_cropSize, cropSize.width, cropSize.height);
+        gl.uniform1f(this.u_cropRotation, cropRot);
 
         gl.clearColor(0, 0, 0, 1);
 		gl.clear(gl.COLOR_BUFFER_BIT);
@@ -92,18 +88,10 @@ export class DisplayView {
 	}
 
 	setCrop(cropEnabled, cropCenter, cropSize, cropRotation) {
-		if (!this.renderResult) return;
-
-		if (cropEnabled) {
-			this.cropCenter = cropCenter;
-			this.cropSize = cropSize;
-			this.cropRotation = cropRotation;
-		}
-		else {
-			this.cropCenter = { x: this.renderResult.size.width / 2, y: this.renderResult.size.height / 2 };
-			this.cropSize = { width: this.renderResult.size.width, height: this.renderResult.size.height };
-			this.cropRotation = 0;
-		}
+		this.cropEnabled = cropEnabled;
+		this.cropCenter = cropCenter;
+		this.cropSize = cropSize;
+		this.cropRotation = cropRotation;
 		this.present();
 	}
 

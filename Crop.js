@@ -19,9 +19,10 @@ export class Crop {
 
 	setImage(size) {
 		this.imageSize = size;
+		this.ratio = size;
 		this.center = { x: Math.round(size.width / 2), y: Math.round(size.height / 2) };
 		this.scale = size.width / this.ratio.width;
-		if (this.enabled) this.onChange;
+		this.onChange();
 	}
 
 	clampToImageBounds() {
@@ -84,9 +85,18 @@ export class Crop {
 
 		this.editBtn = document.createElement("button");
 		this.editBtn.textContent = "Edit Crop";
+
+		const onEscape = (e) => {
+			if (e.key === "Escape") {
+				window.removeEventListener('keydown', onEscape);
+				this.editBtn.classList.remove("active");
+				this.onStopEdit();
+			}
+		}
 		this.editBtn.onclick = () => {
 			if (!this.editing) {
 				this.editBtn.classList.add("active");
+				window.addEventListener('keydown', onEscape);
 				this.onStartEdit();
 			}
 			else {
@@ -200,7 +210,7 @@ export class Crop {
 
         // Events
         slider.oninput = () => {
-            valueEl.textContent = slider.value;
+            valueEl.textContent = Number(slider.value).toFixed(1);
             this.rotation = slider.value * Math.PI / 180;
             this.onChange();
         }
@@ -209,6 +219,13 @@ export class Crop {
             slider.value = 0;
             slider.dispatchEvent(new Event('input', { bubbles: true }));
         };
+
+        sliderRow.onwheel = (e) => {
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 0.1 : -0.1;
+            slider.value = +slider.value + delta;
+            slider.oninput();
+        }
 
         angleSliderGroup.appendChild(headerRow);
         angleSliderGroup.appendChild(sliderRow);

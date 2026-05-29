@@ -93,7 +93,8 @@ export class EffectWithUI extends Effect {
         format = v => {
             if (v >= 10) return v.toFixed(0);
             if (v >= 1) return v.toFixed(1);
-            return v.toFixed(2);
+            if (v >= 0.1) return v.toFixed(2);
+            return v.toFixed(3);
         }
     }) {
         const sliderGroup = document.createElement("div");
@@ -132,6 +133,13 @@ export class EffectWithUI extends Effect {
             slider.value = defaultValue;
             slider.dispatchEvent(new Event('input', { bubbles: true }));
         };
+
+        sliderGroup.onwheel = (e) => {
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? -1 : 1;
+            slider.value = +slider.value + delta;
+            slider.oninput();
+        }
 
         resetBtn.click();
 

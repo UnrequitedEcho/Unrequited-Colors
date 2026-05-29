@@ -15,12 +15,12 @@ const renderer = new Renderer(
 ); 
 
 const effectsConfig = {  
-    rgbToOklab:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './rgbToOklab.frag', },  
-    bilateralFilter: { Object: ShaderPasses.BilateralFilterEffect,      enabled: false, path: './bilateral.frag',  },  
-    colorAdjust:     { Object: ShaderPasses.ColorAdjustEffect,          enabled: false, path: './colors.frag',     },
-    rbf:             { Object: ShaderPasses.RadialBasisFunctionEffect,  enabled: true,  path: './rbf.frag',        },  
-    lumaGrain:       { Object: ShaderPasses.LumaGrainEffect,            enabled: false, path: './dither.frag',     },
-    oklabToRgb:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './oklabToRgb.frag', },  
+    rgbToOklab:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './shaders/rgbToOklab.frag', },  
+    bilateralFilter: { Object: ShaderPasses.BilateralFilterEffect,      enabled: false, path: './shaders/bilateral.frag',  },  
+    colorAdjust:     { Object: ShaderPasses.ColorAdjustEffect,          enabled: false, path: './shaders/colors.frag',     },
+    rbf:             { Object: ShaderPasses.RadialBasisFunctionEffect,  enabled: true,  path: './shaders/rbf.frag',        },  
+    lumaGrain:       { Object: ShaderPasses.LumaGrainEffect,            enabled: false, path: './shaders/dither.frag',     },
+    oklabToRgb:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './shaders/oklabToRgb.frag', },  
 };
 
 const effectsContainer = document.getElementById("effects");
@@ -169,7 +169,6 @@ resetBtn.onclick = () => {
 const eventHandler = new EventHandler(canvas, displayView, crop);
 
 // DEBUG: AutoLoad Debug Image
-
 async function importImageFromUrl(url) {
     const img = new Image();
     img.src = url;
