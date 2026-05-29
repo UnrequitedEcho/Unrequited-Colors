@@ -4,44 +4,23 @@ precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 uniform sampler2D u_image;
-uniform float u_contrast; // expected -1 -> 1
+uniform float u_brightness; // expected -1 -> 1
 uniform float u_saturation;
 uniform float u_shadows; 
 uniform float u_highlights;
+uniform float u_rotation;
 
 #define EPS 1e-6
 
-vec3 contrast(vec3 c) {
-    vec3 d = vec3(0.);
-    float x = (c.x - 0.5) * 2.; // 0 -> 1 to -1 -> 1
-    float g = exp(-u_contrast);
-    float xp = sign(x) * pow(abs(x), g);
-    float L = xp * 0.5 + 0.5; // back to 0 -> 1
-    d.x = L - c.x;
-
-    // tiny chroma compensation in shadows
-    float k = max(u_contrast, 0.);
-    float scale = 1.0 + 0.08 * k * (1. - c.x);
-    d.yz = (c.yz * scale) - c.yz;
-
-    return d;
+vec3 brightness(vec3 c) {
+    return vec3(u_brightness, 0., 0.);
 }
 
 vec3 saturation(vec3 c) {
-    vec3 d = vec3(0.);
-
-    float sat_scale = exp(u_saturation);
-
-    // Vibrance weight: Strong for desaturated colors, weak for saturated colors
-    float chroma = length(c.yz);
-    float vib = exp(-3.0 * chroma);
-    float t = (u_saturation + 1.) * 0.5; // Blend between vibrance and true saturation
-    float vib_scale = 1.0 + (sat_scale - 1.0) * vib;
-    float scale = mix(vib_scale, sat_scale, t);
-
-    d.yz = (c.yz * scale) - c.yz;
-
-    return d;
+    float f = (u_saturation < 0.)
+        ? pow(1. + u_saturation, 2.)
+        : exp2(3. * u_saturation);
+    return vec3(0., c.yz * (f - 1.0));
 }
 
 vec3 shadows(vec3 c) {
@@ -49,7 +28,8 @@ vec3 shadows(vec3 c) {
 
     float k = mix(8.0, 1.5, abs(u_shadows)); // narrow threshold at low strength, wide at high strength
     float w = pow(1.0 - c.x, k); // shadow mask
-    d.x = 0.25 * u_shadows * w;
+    float strength = sign(u_shadows) * pow(abs(u_shadows), 1.5); // exponential response
+    d.x = strength * w;
 
     return d;
 }
@@ -59,16 +39,31 @@ vec3 highlights(vec3 c) {
 
     float k = mix(8.0, 1.5, abs(u_highlights));
     float w = pow(c.x, k);
-    d.x = 0.25 * u_highlights * w;
+    float strength = sign(u_highlights) * pow(abs(u_highlights), 1.5);
+    d.x = strength * w;
 
+    return d;
+}
+
+vec3 rotate(vec3 c) {
+    float rot = radians(u_rotation);
+    float sn = sin(rot);
+    float cs = cos(rot);
+
+    vec3 d = vec3(
+        0., 
+        c.y * (cs - 1.) - c.z * sn, 
+        c.y * sn + c.z * (cs - 1.)
+    );
     return d;
 }
 
 void main() {
     vec3 c = texture(u_image, v_uv).xyz;
     vec3 cc = c;
-    if (abs(u_contrast) > EPS) c += contrast(cc);
-    if (abs(u_saturation) > EPS) c += saturation(cc);
+    if (abs(u_rotation) > EPS) c += rotate(cc);
+    if (abs(u_saturation) > EPS) c += saturation(c);
+    if (abs(u_brightness) > EPS) c += brightness(cc);
     if (abs(u_shadows)    > EPS) c += shadows(cc);
     if (abs(u_highlights)  > EPS) c += highlights(cc);
 

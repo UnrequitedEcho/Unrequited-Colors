@@ -91,9 +91,10 @@ export class EffectWithUI extends Effect {
         defaultValue = 50, 
         transform = v => v,
         format = v => {
-            if (v >= 10) return v.toFixed(0);
-            if (v >= 1) return v.toFixed(1);
-            if (v >= 0.1) return v.toFixed(2);
+            if (v === 0) return 0;
+            if (Math.abs(v) >= 10) return v.toFixed(0);
+            if (Math.abs(v) >= 1) return v.toFixed(1);
+            if (Math.abs(v) >= 0.1) return v.toFixed(2);
             return v.toFixed(3);
         }
     }) {
@@ -170,7 +171,6 @@ export class RadialBasisFunctionEffect extends EffectWithUI {
         this.u_palette = gl.getUniformLocation(this.program, "u_palette");
         this.u_paletteSize = gl.getUniformLocation(this.program, "u_paletteSize");
         this.u_sigma = gl.getUniformLocation(this.program, "u_sigma");
-        this.u_chromaBias = gl.getUniformLocation(this.program, "u_chromaBias");
     }
 
     setUniforms() {
@@ -178,7 +178,6 @@ export class RadialBasisFunctionEffect extends EffectWithUI {
         this.gl.uniform3fv(this.u_palette, this.palette);
         this.gl.uniform1i(this.u_paletteSize, this.paletteSize);
         this.gl.uniform1f(this.u_sigma, this.sigma);
-        this.gl.uniform1f(this.u_chromaBias, this.chromaBias);
     }
 
     makeUI(...args) {
@@ -192,18 +191,6 @@ export class RadialBasisFunctionEffect extends EffectWithUI {
                 property: "sigma",
                 transform: v => {
                     const min = 0.01; const max = 0.5; const power = 2;
-                    return min + (max - min) * Math.pow((v / 100), power);
-                },
-            })
-        );
-
-        controls.appendChild(
-            this.makeControlSlider({
-                label: "More Colors", 
-                property: "chromaBias",
-                defaultValue: 0,
-                transform: v => {
-                    const min = 0; const max = 25; const power = 2;
                     return min + (max - min) * Math.pow((v / 100), power);
                 },
             })
@@ -335,26 +322,29 @@ export class LumaGrainEffect extends EffectWithUI {
 export class ColorAdjustEffect extends EffectWithUI {
     constructor(...args) {
         super(...args);
-        this.contrast = 50;
+        this.brightness = 50;
         this.saturation = 50;
         this.shadows = 50;
         this.highlights = 50;
+        this.rotation = 50;
     }
 
     makeGlProgram(gl, vs) {
         super.makeGlProgram(gl, vs);
-        this.u_contrast = gl.getUniformLocation(this.program, "u_contrast");
+        this.u_brightness = gl.getUniformLocation(this.program, "u_brightness");
         this.u_saturation = gl.getUniformLocation(this.program, "u_saturation");
         this.u_shadows = gl.getUniformLocation(this.program, "u_shadows");
         this.u_highlights = gl.getUniformLocation(this.program, "u_highlights");
+        this.u_rotation = gl.getUniformLocation(this.program, "u_rotation");
     }
 
     setUniforms() {
         super.setUniforms();
-        this.gl.uniform1f(this.u_contrast, this.contrast);
+        this.gl.uniform1f(this.u_brightness, this.brightness);
         this.gl.uniform1f(this.u_saturation, this.saturation);
         this.gl.uniform1f(this.u_shadows, this.shadows);
         this.gl.uniform1f(this.u_highlights, this.highlights);
+        this.gl.uniform1f(this.u_rotation, this.rotation);
     }
 
     makeUI(...args) {
@@ -364,9 +354,12 @@ export class ColorAdjustEffect extends EffectWithUI {
     makeControls(controls) {
         controls.appendChild(
             this.makeControlSlider({ 
-                label: "Contrast",
-                property: "contrast",
-                transform: v => { return (v - 50) / 50; }
+                label: "Brightness",
+                property: "brightness",
+                transform: v => { 
+                    v = (v - 50) / 50;
+                    return Math.sign(v) * v * v; 
+                }
             })
         );
 
@@ -391,6 +384,15 @@ export class ColorAdjustEffect extends EffectWithUI {
                 label: "Highlights",
                 property: "highlights",
                 transform: v => { return (v - 50) / 50; }
+            })
+        );
+
+        controls.appendChild(
+            this.makeControlSlider({ 
+                label: "Hue",
+                property: "rotation",
+                format: v => v.toFixed(0),
+                transform: v => { return (v - 50) / 50 * 180; }
             })
         );
     }

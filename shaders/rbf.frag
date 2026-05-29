@@ -7,7 +7,6 @@ uniform sampler2D u_image;
 uniform vec3 u_palette[32];
 uniform int u_paletteSize;
 uniform float u_sigma;
-uniform float u_chromaBias;
 
 void main() {
     vec3 c = texture(u_image, v_uv).xyz;
@@ -22,7 +21,6 @@ void main() {
         vec3 delta = c - u_palette[i];
         float palChroma = length(u_palette[i].yz);
         d[i] = delta.x * delta.x + dot(delta.yz, delta.yz);
-        d[i] /= (1. + u_chromaBias * palChroma);
         if (d[i] < d_min) d_min = d[i];
     }
 
@@ -33,7 +31,7 @@ void main() {
         if (i >= u_paletteSize) break;
 
         float a = (d[i] - d_min) / (u_sigma * u_sigma);
-        float w = pow(max(0., 1. - a), 2. + (u_chromaBias / 4.));
+        float w = pow(max(0., 1. - a), 2.);
         result += u_palette[i] * w;
         sum_w += w;
     }
