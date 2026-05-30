@@ -2,147 +2,136 @@
 
 *Because not all colors' love are reciprocated.*
 
-Unrequited Colors is a tool for applying a constraining an image to a strict color palette. The goal is to be as *correct* as quantization, while preserving gradients and feeling more natural and stylish. Built with speed and interactivity in mind, it aims makes palette and parameter tweaking effortless. The most obvious use case is adapting wallpapers to match an application or system theme.
+Unrequited Colors is a browser-based tool for constraining an image to a color palette. Unlike most similar programs, which rely on simple color quantization, UC uses a more sophisticated algorithm that blends palette colors together to produce smoother gradients while remaining faithful to the selected palette. It also includes a small set of pre- and post-processing filters designed specifically to complement the core algorithm. The primary use case is adapting wallpapers to match a desktop or system theme, though it can be used for any project that requires a limited color palette.
 
-Below are some exemples, original on the left, UC on the right.
+Unrequited Colors is not intended to be a full-featured image editor. If your image requires significant editing beyond palette conversion and basic cropping, it is usually best to make those adjustments in your preferred image editor before importing the image into UC.
 
-*Heavily Draculized Forest*
-![Heavy Draculized Forest](assets/readme/sidebyside3.jpg)
+Below are a few examples, with the original image on the left and the UC result on the right.
 
-*Tastefully Nordified Ashe*
-![Tastefully Nordified Ashe](assets/readme/sidebyside2.jpg)
-
-*Slightly Tokyo-ised Fuji*
-![Slightly Tokyo-ised Fuji](assets/readme/sidebyside1.jpg)
+| Original | Unrequited Colors |
+| -------- | ------------------|
+| ![](/readme/anime-cityscape-orig.jpg) | ![](/readme/anime-cityscape-uc.jpg) |
+| ![](/readme/screenshot-mercy-orig.jpg) | ![](/readme/screenshot-mercy-uc.jpg) |
+| ![](/readme/photo-interior-orig.jpg) | ![](/readme/photo-interior-uc.jpg) |
+| ![](/readme/anime-sunset-balcony-orig.jpg) | ![](/readme/anime-sunset-balcony-uc.jpg) |
 
 ## TL;DR
 
-Go [here](https://unrequitedecho.github.io/Unrequited-Colors/) -> pick a palette -> load an image -> tweak the **Temperature** slider.
+- Go [here](https://unrequitedecho.github.io/Unrequited-Colors/)
+- Click **Open Image**
+- Pick a palette
+- Tweak the **Color Mix** slider until it looks amazing.
+- Click **Save Image**
+- Find your picture in your **Downloads** folder
 
-Stop when it looks amazing. Should not take long.
+## Usage
 
-## How Tos
+Here is a good starting workflow without getting into the nitty-gritty details of how the algorithm works. After opening your picture: 
 
-- Choose the temperature
+1. Select you palette
 
-  Each pixel is converted a weighted mix of the palette colors. The weights depend on how close the pixel is to each palette color (in a perceptual color space). The **Temperature** controls how sharp or smooth that mix is:
+If your prefered palette is not available as a preset, you can either edit the current palette manually (see below) or load a text file. The parser will autodetect anything that looks like and hex color. For example, this is a valid palette file : `#282a36 282a36 44475aff ["f8f8f2"] Some random text #282a36 `. Duplicates are removed automatically, and only the first 32 colors are kept. If you already have a palette in a config file (CSS, JSON, theme files...), you can probably import it directly or with minimal modification.
 
-  - **Low temperature** -> one color dominates -> pretty much quantization (but never quite !)
-  - **High temperature** -> all colors contribute equally -> washed out image
+2. Adjust the the `Palettize` -> `Color Mix` slider
 
-  The default range is tuned so that the sweet spot is usually near the middle, but don’t be afraid to push it.
+Moving the slider all the way to the left tells the algorithm to select a single palette color for each pixel (pretty much quantization). Moving it to the right allows the algorithm to blend multiple palette colors together, producing smoother gradients. You most likely want something in between. *Tip: you can use the mouse wheel while hovering over any slider for finer control.*
 
-- Choose a good palette
+3. Adjust the Palette
 
-  This matters less than you might think. You can throw in your favorite 16 colors terminal theme, and it will usually work just fine. There’s a hard cap at 32 colors, and fewer than 2 doesn’t make much sense. 
+If you notice a color that obviously doesn't belong in the preview, disable or remove it. If your palette is too small, the algorithm may struggle to produce nice gradients. In that case you may need to add colors to your palette. The palette controls are:
 
-  To go deeper, think of colors as points on a circle. Your palette a shape of allowable colors on that circle. So a **wide palette** will push the result closer to the original image, while a smaller one (whether because of fewer colors or colors closer to each other), will force more change.
+- New Color: Left click the last color swatch
+- Change a color: Left click on the corresponding swatch 
+- Remove a color: Right click on the the corresponding swatch
+- Temporarily disable a color: Middle or Shift + Right click on the the corresponding swatch
 
-  In practice, just load all the colors of your favorite theme. If a color you don't like shows up to much, disable it (middle click) or tweak it slightly (left click).
+4. (OPTIONAL) Activate `Smart Blur` and adjust the `Strength` slider
 
-- Load a custom palette
+The paletization algorithm is very sensitive to noise. In many cases, a small amount of blur can help a lot. Unlike a traditional blur, Smart Blur preserves edges while smoothing noise. If you push it, you might also get some artistic/painterly effects which you might enjoy.
 
-  You can load a palette from a text file. The parser will autodetect anything that looks like and hex color. For example, this is a valid palette file : `#282a36 282a36 44475aff ["f8f8f2"] Some random text #282a36 `
+| Original (Worst case scenario) | After Paletization | With Smart Blur |
+|--------------------------------|--------------------|-----------------|
+| ![](/readme/noise-orig.jpg) | ![](/readme/noise-paletized.jpg) | ![](/readme/noise-smartblur.jpg) |
 
-  Duplicates are removed automatically, and only the first 32 colors are kept. If you already have a palette in a config file (CSS, JSON, theme files, etc.), you probably can import it with minimal modification.
+5. (OPTIONAL) Activate `Color Adjustements`. 
 
-## How it works (for the curious)
+If you cannot get the effect you are looking for, the `Color Adjustments` filters might help. **These adjustments are applied before palette conversion, not after it.** As a result, they are designed to influence how the algorithm interprets the image rather than to directly change the final colors. Because of this, the sliders may not always behave as you would expect. For example, the `Shadows` slider cannot make a pixel darker than the darkest color available in your palette. Similarly, rotating the Hue can help adapt an image whose original colors are very different from those of the selected palette.
 
-Don't let the scary math fool you, it's actuall pretty simple.
+For best results, **leave the Palettize filter enabled** while adjusting these controls.
 
-Each pixel color is first converted to the [OKLab color space](https://en.wikipedia.org/wiki/Oklab_color_space). Given a pixel color $`x`$ and a palette of colors $`C_N`$, also in OKLab, we compute a weight for each palette color $`C_i`$:
+6. (OPTIONAL) Activate the `Luma Grain` and adjust the slider.
 
-```math
-w_i = \exp\left(-\left(\frac{d(x,C_i) - d_{\min}}{T}\right)^2\right)
-```
+If you notice some banding, even after increasing the `Palettize` -> `Color Mix` slider, you may want to activate the `Luma Grain`. Start at the minimum, and slowly increase it until the banding disappears. It should be mostly imperceptible unless you are pixel peeping.
 
-where:
+7. Readjust the `Palettize` -> `Color Mix`. 
 
-- $`d(x, c_i) = \|x - c_i\|^2`$ is the squared Euclidean distance in OKLab
-- $`d_{\min} = \min_i d(x, c_i)`$
-- $`T`$ is the temperature parameter
+You probably only need small adjustments at this point, if any.
 
-The final color is the weighted average of all the colors:
+8. (OPTIONAL) `Crop` the image as needed
 
-```math
-y = \frac{\sum_i w_i c_i}{\sum_i w_i}
-```
+Activate the `Crop` tool and select your preffered aspect ratio. To set the size and the center of the crop box, click the **Edit Crop** button, then click on the preview and scroll the moouse wheel. Click the button again (or press Escape) to exit crop mode. The crop tool guarantees that the crop region always remains fully inside the image boundaries. Make sure the final resolution is high enough for your use case. 
 
-Implementation-wise, the algorithm has been ported from its original Python prototype to a WebGL fragment shader. It fully rendered on the GPU, and is applied pretty much instantaneously, enabling real-time feedback while adjusting the palette and parameters.
+9. Save the image
 
-## Comparison to other techniques
+## How it works
 
-### Overview 
+The core palette conversion algorithm is a form of Radial Basis Function (RBF) interpolation. For each pixel, the algorithm computes a weighted average of the colors in the palette. These weights depend on the distance between the pixel color and each palette color in [OKLab space](https://en.wikipedia.org/wiki/Oklab_color_space). Unlike traditional RBF implementations, which often use Gaussian kernels, UC uses a linear kernel relative to the closest palette color. This prevents distant palette colors from contributing tiny but non-zero amounts everywhere in the image, helping to preserve contrast and reduce the influence of outlier colors.
+
+All image processing is implemented as a pipeline of WebGL2 shaders and runs entirely on the GPU. Colors are converted to OKLab in the first pipeline step  and converted back to RGB in the last, making every shader work in OKLab. Rendering is performed on change rather than continuously, and the renderer processes the image in tiles so it can periodically give back control back to the browser and keep the interface responsive, even on slower hardware.
+
+The "Smart Blur" filter is a bilateral filter with a fixed radius of 12 pixels. Despite optimizations, it remains one of the more expensive filters in the pipeline and it's result is therefore cached.
+
+## Comparison to other techniques - or why do I need UC?
 
 There are 3 approaches to palette-based recoloring I know of:
 
-- **Quantization**  
-  The simplest method: each pixel is replaced by the closest color in the palette. It is fast and predictable, but produce hard boundaries. The result is very dependent on the choice and especially size of the palette. Dithering can help too. 
+- **Quantization based**  
+  The simplest method: each pixel is replaced by the closest color in the palette. It is fast and easy to understand, but produce hard boundaries between colors. The result is very dependent on the choice and especially size of the palette. Dithering can help too. This is what the popular [ImageGoNord](https://github.com/Schroedinger-Hat/ImageGoNord-Web), with some optional pixel averaging and gaussian blur post process. From my experience, you can get good results, but it requires a lot of tweaking. You probably will want some kind of denoising prepass, and a custom palette with a lot of intermediate colors. All of this can be done much easier with instant feedback using Unerquited Colors.
 
-- [**ImageGoNord**](https://github.com/Schroedinger-Hat/ImageGoNord-Web)  
-  At its core, this is also a quantization-based approach. It can optionally average pixels before quantization, which reduces noise slightly, and apply Gaussian blur afterward to smooth the result, but at the cost of the details. It can also act as a wrapper around PaletteNet (see below).
+- **Radial Basis Function based**
+  Instead of selecting a single palette color for each pixel, thes method blends multiple palette colors together to produce new intermediate colors. The results depend a lot on implementation. Besides Unrequited Colors, I am only aware of a single tool making use of this approach : [Gowall](https://github.com/Achno/gowall).
 
-- [PaletteNet](https://openaccess.thecvf.com/content_cvpr_2017_workshops/w12/papers/Cho_PaletteNet_Image_Recolorization_CVPR_2017_paper.pdf)
-  A machine learning approach. Given a palette (limited to 6 colors in the available open source implementation), it attempts to generate a plausible recolored image. From my experience, results can be impressive sometimes, but the process is a total black box. It seems to prefer real world photos over digital artwork, probably because of the training data.
+- **Machine Learning based**
+  The most well known option is [PaletteNet](https://openaccess.thecvf.com/content_cvpr_2017_workshops/w12/papers/Cho_PaletteNet_Image_Recolorization_CVPR_2017_paper.pdf). From my limited experience, results can be impressive sometimes, but you get very little control over the final result. It seems to prefer real world photos and struggles with digital artwork, probably because of the training data. The open source implementation is limited to a 6 color palette.
 
-### Comparison
+The examples below are intended to illustrate the strengths and weaknesses of each approach. All algorightm are fed the same source images and a palette picked from a combination or a portion of the 11 [Dracula](https://draculatheme.com/contribute) colors. Some time was spent tuning the parameters of each method to produce representative results. Better results are possible for each with additional tweaking, different palettes, or different source images.
 
-All results use the same source images and as close to the 11 colors [Dracula](https://en.wikipedia.org/wiki/Dracula_(color_scheme)) palette as possible.
+To keep the comparison reasonably fair, I limited myself to roughly two minutes of adjustment time in Unrequited Colors for each image.
 
-| Image | Original | ImageGoNord | PaletteNet | Quantization | Unrequited Colors |
-|------|----------|-------------|-------------|--------------|-------------------|
-| 1 | ![](assets/readme/1.jpg) | ![](assets/readme/1_ign.jpg) | ![](assets/readme/1_pn.jpg) | ![](assets/readme/1_q.jpg) | ![](assets/readme/1_uc.jpg) |
-| 2 | ![](assets/readme/2.jpg) | ![](assets/readme/2_ign.jpg) | ![](assets/readme/2_pn.jpg) | ![](assets/readme/2_q.jpg) | ![](assets/readme/2_uc.jpg) |
-| 3 | ![](assets/readme/3.jpg) | ![](assets/readme/3_ign.jpg) | ![](assets/readme/3_pn.jpg) | ![](assets/readme/3_q.jpg) | ![](assets/readme/3_uc.jpg) |
-| 4 | ![](assets/readme/4.jpg) | ![](assets/readme/4_ign.jpg) | ![](assets/readme/4_pn.jpg) | ![](assets/readme/4_q.jpg) | ![](assets/readme/4_uc.jpg) |
-| 5 | ![](assets/readme/5.jpg) | ![](assets/readme/5_ign.jpg) | ![](assets/readme/5_pn.jpg) | ![](assets/readme/5_q.jpg) | ![](assets/readme/5_uc.jpg) |
-
-### Methodology
-
-- **Original**
-  - Downscaled only: `magick 1.png -resize 1200x1200\> -define jpeg:extent=300KB 1.jpg`
-
-- **ImageGoNord**
-  - 11 colors Dracula palette
-  - `enable_avg_algorithm()`
-  - No ML mode (wrapper for PaletteNet) or post process blur
-
-- **PaletteNet**
-  - Limited to 6 colors. Color chosen: `#282a36 #f8f8f2 #8be9fd #bd93f9 #ff79c6 #f1fa8c`
-
-- **Quantization**
-  - Palette creation: `magick xc:"#282a36" xc:"#44475a" xc:"#f8f8f2" xc:"#6272a4" xc:"#8be9fd" xc:"#50fa7b" xc:"#ffb86c" xc:"#ff79c6" xc:"#bd93f9" xc:"#ff5555" xc:"#f1fa8c" +append palette.png`
-  - Quantization: `magick 1.jpg -remap palette.png 1_q.jpg`
-  - Dithering enabled by default
-
-- **Unrequited Colors**
-  - 11 colors Dracula palette
-  - Temperature manually adjusted (<= 5 seconds per image)
-  - Output converted from PNG: `magick 1_uc.png 1_uc.jpg`
+| Original | Quantization | PaletteNet | Unrequited Colors | 
+|----------|--------------|------------|-------------------|
+| ![](/readme/anime-cityscape-orig.jpg)      | ![](/readme/anime-cityscape-quant.jpg)      | ![](/readme/anime-cityscape-palettenet.jpg)      | ![](/readme/anime-cityscape-uc.jpg)      |
+| ![](/readme/screenshot-mercy-orig.jpg)     | ![](/readme/screenshot-mercy-quant.jpg)     | ![](/readme/screenshot-mercy-palettenet.jpg)     | ![](/readme/screenshot-mercy-uc.jpg)     |
+| ![](/readme/photo-interior-orig.jpg)       | ![](/readme/photo-interior-quant.jpg)       | ![](/readme/photo-interior-palettenet.jpg)       | ![](/readme/photo-interior-uc.jpg)       |
+| ![](/readme/anime-sunset-balcony-orig.jpg) | ![](/readme/anime-sunset-balcony-quant.jpg) | ![](/readme/anime-sunset-balcony-palettenet.jpg) | ![](/readme/anime-sunset-balcony-uc.jpg) |
 
 ## FAQ
 
-- I get banding in gradients
+- The result contains colors that are not in my palette
+
+  This is expected. Unrequited Colors blends palette colors together to create smoother gradients. If you want each pixel to be replaced by a single palette color, reduce `Palettize` → `Color Mix` to the minimum.
+
+- I get color banding in gradients
 
   First, check if the original image already has banding (seriously). If not, here are a few things you can try:
 
-  - Increase the **Temperature** (more colors participate in blending => smoother transitions)
+  - Increase the **Palettize -> Color Mix** (more colors participate in blending => smoother transitions)
   - Add more (or more diverse) colors to the palette (especially colors near the banding)
-  - Lower the temperature and make the banding a stylistic choice (try it, I dare you!)
+  - Enable the **Luma Grain** post processing effect as a last resort.
 
   At the end of the day, you're limiting the color space, so some banding is unavoidable in certain cases.
 
 - I don't want a website, I want to run it locally
 
-  Then you are in luck! After the source code download from GitHub, everything already runs locally on your machine. All computations are done client-side (WebGL + JavaScript). Your images are never uploaded anywhere. Try it! open the website and disconnect from the Internet. It still works!
+  Then you are in luck! Once the source code has been downloaded by your browser, everything runs locally on your machine. All computations are performed client-side on your own GPU. Your images are never uploaded anywhere. Try it! Open the website and disconnect from the Internet. It still works!
 
-  If you really need to use it offline and not rely on your browser cache, clone the repo and start a local server, for exemple `python3 -m http.server`. Then open a web browser and go to [http://localhost:8000](http://localhost:8000)
+  If you need to use it completely offline cannot rely on the browser cache, clone the repository and start a local web server, for example: `python3 -m http.server`. Then open your browser and go to [http://localhost:8000](http://localhost:8000).
 
   If enough people pester me for it, I might reimplement the core algorithm as a small CLI program.
 
 - My favorite theme is not avaiable as a Preset
 
-  You can manually add each color of your theme. You can also [load a custom theme from a file](#how-tos). If you think your theme might be helpful to the community and wish to contribute it, thank you! Palettes are stored in [`palettes.json`](./palettes.json). Each entry looks like this:
+  You can manually edit the palette or load a custom palette from a file. If you think your theme might be helpful to others and wish to contribute it, thank you! Palettes are stored in [`palettes.json`](./palettes.json). Each entry looks like this:
 
   ```json
   {
@@ -151,19 +140,19 @@ All results use the same source images and as close to the 11 colors [Dracula](h
   }
   ```
 
-  Remember to keep your palette below 32 colors, avoid duplicates colors, give it a unique name. Then open a Pull Request.
+  Please keep palettes to 32 colors or fewer, avoid duplicates colors, give it a unique name. Then open a Pull Request.
 
 ## Roadmap
 
-### V2
+### V3
 
-- **Denoise preprocessing**  
-  The algorithm doesn't play too nice with noise. A denoising preprocessing step would significantly improve results on some images.
-
-- **Dithering**  
-  Could help reduce banding in gradients, especially with small or stylized palettes.
+- **Rewrite of the UI code**  
+  The whole UI code is pretty bad, with state duplication everywhere. Ok for the prototype, but it's starting to slow down development.
 
 ### Maybe
 
-- **Other optional pre-processing effects**
-  Effects like brightness/constrast, vignette, blur... Don't want to make a new photoshop, though, so I'd be very selective about what I add there
+- **Other optional pre/post processing effects**
+  Effects like vignette, blur... Don't want to make a new photoshop, though, so I'd be very selective about what I add there
+
+- **Electron/Tauri desktop app**
+  Not worth the effort for now, but if there is enough demand...

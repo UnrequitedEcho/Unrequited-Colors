@@ -1,294 +1,191 @@
-import { ColorTransfer } from "./ColorTransfer.js";
-import { Palette } from "./palette.js";
-import { renderPalette } from "./palette.js";
-
-const ct = new ColorTransfer();
-await ct.init();
-
-let image = null;
-let processed = null;
+import { DisplayView, Renderer } from "./Renderer.js";
+import * as ShaderPasses from './ShaderPasses.js';
+import { EventHandler } from "./Event.js";
+import { Palette } from "./Palette.js";
+import { Crop } from "./Crop.js";
 
 // -----------------------------------------------------------------
-// Open Image
+// Effects
 // -----------------------------------------------------------------
-const openImageBtn = document.getElementById("openImage");
-const imageInput = document.getElementById("imageInput");
+const canvas = document.getElementById("preview-canvas");
+const displayView = new DisplayView(canvas);
+const renderer = new Renderer(
+    displayView.gl, displayView.quadBuffer, 
+    (res) => { displayView.present(res); }
+); 
 
-openImageBtn.onclick = () => imageInput.click();
-
-imageInput.onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const img = new Image();
-
-    img.onload = () => {
-        image = img;
-
-        ct.setImage(img);
-        processed = ct.getProcessedImage();
-        
-        resetTransform()
-
-        draw();
-    };
-
-    img.src = URL.createObjectURL(file);
+const effectsConfig = {  
+    rgbToOklab:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './shaders/rgbToOklab.frag', },  
+    bilateralFilter: { Object: ShaderPasses.BilateralFilterEffect,      enabled: false, path: './shaders/bilateral.frag',  },  
+    colorAdjust:     { Object: ShaderPasses.ColorAdjustEffect,          enabled: false, path: './shaders/colors.frag',     },
+    rbf:             { Object: ShaderPasses.RadialBasisFunctionEffect,  enabled: true,  path: './shaders/rbf.frag',        },  
+    lumaGrain:       { Object: ShaderPasses.LumaGrainEffect,            enabled: false, path: './shaders/dither.frag',     },
+    oklabToRgb:      { Object: ShaderPasses.Effect,                     enabled: true,  path: './shaders/oklabToRgb.frag', },  
 };
 
-// -----------------------------------------------------------------
-// Save Image
-// -----------------------------------------------------------------
-const saveBtn = document.getElementById("saveImage");
+const effectsContainer = document.getElementById("effects");
 
-saveBtn.onclick = () => {
-    const canvas = ct.getProcessedImage();
-    if (!canvas) return;
-
-    canvas.toBlob(blob => {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "palette-shift.png";
-        a.click();
-        URL.revokeObjectURL(a.href);
-    });
-};
-
-// -----------------------------------------------------------------
-// Canvas
-// -----------------------------------------------------------------
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-
-let scale = 1;
-let offsetX = 0;
-let offsetY = 0;
-let dragging = false;
-let lastX = 0;
-let lastY = 0;
-
-resize();
-window.addEventListener("resize", resize);
-document.getElementById("resetView").onclick = () => {
-    resetTransform();
-    draw();
-};
-
-// draw
-function draw() {
-    if (!image && !processed) return;
-
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const source = showOriginal ? image : processed;
-    if (!source) return;
-
-    ctx.drawImage(
-        source,
-        offsetX,
-        offsetY,
-        source.width * scale,
-        source.height * scale
+let effects = {}
+for (const [id, config] of Object.entries(effectsConfig)) {
+    const effect = await config.Object.create(config.enabled, config.path);
+    if (effect.makeUI) effect.makeUI(
+        effectsContainer, 
+        () => { renderer.render(); } 
     );
+    effects[id] = effect;
 }
+renderer.setEffects(Object.values(effects), displayView.vs);
 
-// resize
-function resize() {
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
-    resetTransform();
-    draw();
-}
-
-// center image
-function resetTransform() {
-    if (!processed) return;
-
-    scale = Math.min(
-            canvas.width / processed.width,
-            canvas.height / processed.height
-        );
-
-    offsetX = (canvas.width - processed.width * scale) / 2;
-    offsetY = (canvas.height - processed.height * scale) / 2;
-}
-
-// zoom (cursor-centered)
-canvas.onwheel = e => {
-    e.preventDefault();
-
-    const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-
-    const mx = e.offsetX;
-    const my = e.offsetY;
-
-    offsetX = mx - (mx - offsetX) * zoom;
-    offsetY = my - (my - offsetY) * zoom;
-
-    scale *= zoom;
-
-    draw();
-};
-
-// drag to pan
-canvas.addEventListener("mousedown", e => {
-    dragging = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-});
-
-window.addEventListener("mouseup", () => {
-    dragging = false;
-});
-
-window.addEventListener("mousemove", e => {
-    if (!dragging) return;
-    if (e.buttons === 0) return;
-
-    offsetX += e.clientX - lastX;
-    offsetY += e.clientY - lastY;
-
-    lastX = e.clientX;
-    lastY = e.clientY;
-
-    draw();
-});
-
-// -----------------------------------------------------------------
-// Controls
-// -----------------------------------------------------------------
-
-function setupControl(el, onChange) {
-    const slider = el.querySelector(".slider");
-    const toggle = el.querySelector(".toggle");
-
-    let state = {
-        value: parseFloat(slider.value),
-        enabled: !toggle.checked
-    };
-
-    slider.oninput = () => {
-        state.value = parseFloat(slider.value);
-        onChange(state);
-    };
-
-    toggle.onchange = () => {
-        state.enabled = !toggle.checked;
-        slider.classList.toggle("disabled", state.enabled);
-        onChange(state);
-    };
-
-    slider.classList.toggle("disabled", state.enabled);
-    onChange(state);
-
-    return () => state;
-}
-
-let showOriginal = false;
-const tempControl = setupControl(
-    document.querySelector('[data-control="temperature"]'),
-    (state) => {
-        const Tmin = 1e-3;
-        const Tmax = 0.3;
-        showOriginal = state.enabled;
-        const temperature = Tmin * Math.pow(Tmax / Tmin, state.value);
-        ct.setTemp(temperature);
-        processed = ct.getProcessedImage();
-        draw();
+const globalEffectsToggle = document.getElementById("global-effects-toggle");
+globalEffectsToggle.onchange = () => {
+    if (globalEffectsToggle.checked) {
+        effectsContainer.classList.remove("disabled");
+        renderer.render();
+    } else {
+        effectsContainer.classList.add("disabled");
+        renderer.render(true);
     }
-);
-
+}
 
 // -----------------------------------------------------------------
 // Palette
 // -----------------------------------------------------------------
-const presetSelect = document.getElementById("presetSelect");
 const paletteContainer = document.getElementById("palette");
-
-const palette = new Palette(() => {
-    renderPalette(paletteContainer, palette.colors, (newColors) => {
-        palette.set(newColors);
-    });
-    presetSelect.value = palette.preset ?? "custom";
-    ct.setPalette(palette.getActiveColors());
-    processed = ct.getProcessedImage();
-    draw();
+const presets = await fetch("./palettes.json").then(r => r.json());
+const palette = new Palette((colors) => {
+    effects.rbf.setPalette(colors);
 });
+palette.createUI(paletteContainer, presets);
 
 // -----------------------------------------------------------------
-// Palette Presets
+// Crop
 // -----------------------------------------------------------------
-const optCustom = document.createElement("option");
-optCustom.value = "custom";
-optCustom.textContent = "Custom";
-optCustom.disabled = true;
-presetSelect.appendChild(optCustom);
+const cropContainer = document.getElementById("crop");
+const crop = new Crop(
+    (...args) => { displayView.setCrop(...args); },
+    () => { eventHandler.editingCrop = true; canvas.style.cursor = "crosshair"; },
+    () => { eventHandler.editingCrop = false; canvas.style.cursor = ""; },
 
-const presets = await fetch("palettes.json").then(r => r.json());
+);
+crop.createUI(cropContainer);
 
-presets.forEach((p, i) => {
-    const opt = document.createElement("option");
-    opt.value = p.name;
-    opt.textContent = p.name;
-    presetSelect.appendChild(opt);
-});
+const cropToggle = document.getElementById("crop-toggle");
+cropToggle.onchange = () => { 
+    if (cropToggle.checked) {
+        cropContainer.classList.remove("disabled");
+        crop.enabled = true;
+    }
+    else {
+        cropContainer.classList.add("disabled");
+        crop.enabled = false;
+    }
+    crop.onChange();
+};
+cropToggle.checked = false;
+cropToggle.onchange();
 
-presetSelect.onchange = () => {
-    if (presetSelect.value === "custom") return;
+// -----------------------------------------------------------------
+// Import Button
+// -----------------------------------------------------------------
+async function importImage(file) {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    await img.decode();
 
-    const p = presets.find(p => p.name === presetSelect.value);
-    palette.set(p.colors, { preset: p.name });
+    const maxTextureSize = renderer.getMaxTextureSize();
+    const canvas = document.createElement("canvas");;
+    let scale = 1;
+
+    if (img.width > maxTextureSize || img.height > maxTextureSize) {
+        scale = Math.min(maxTextureSize / img.width, maxTextureSize / img.height, 1);
+        alert(`Image scaled to ${scale * 100}% to fit GPU limits: ${maxTextureSize}px`);
+    } 
+
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(img.src);
+    return canvas;
+}
+
+let imagename;
+const openImageBtn = document.getElementById("openImage");
+openImageBtn.onclick = () => {
+    const input = document.createElement("input");
+
+    input.type = "file";
+    input.accept = "image/*";
+
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        imagename = file.name.slice(0, file.name.lastIndexOf("."));
+        const img = await importImage(file);
+
+        renderer.setImage(img);
+        crop.setImage({width: img.width, height: img.height});
+        displayView.resetTransform({width: img.width, height: img.height});
+        renderer.render();
+
+        document.getElementById("image-name").textContent = imagename;
+        document.getElementById("image-size").textContent = `${img.width}x${img.height}`
+    };
+
+    input.click();
 };
 
-// Initialization
-if (presets.length > 0) {
-    const p = presets[0];
-    presetSelect.value = p.name;
-    palette.set(p.colors, { preset: p.name });
-} else {
-    presetSelect.value = "custom";
+// -----------------------------------------------------------------
+// Save Button
+// -----------------------------------------------------------------
+const saveBtn = document.getElementById("saveImage");
+saveBtn.onclick = () => {
+    const saveCanvas = displayView.export();
+    if (!saveCanvas) return;
+
+    const filename = `${imagename}-${palette.preset ?? "colorized"}.png`;
+
+    saveCanvas.toBlob(blob => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }, "image/png");
+};
+
+// -----------------------------------------------------------------
+// ResetView Button
+// -----------------------------------------------------------------
+const resetBtn = document.getElementById("resetView")
+resetBtn.onclick = () => {
+    displayView.resetTransform();
 }
 
 // -----------------------------------------------------------------
-// Palette Import
+// Events
 // -----------------------------------------------------------------
-document.getElementById("openPalette").onclick = () => {
-    document.getElementById("paletteFile").click();
-};
+const eventHandler = new EventHandler(canvas, displayView, crop);
 
-document.getElementById("paletteFile").onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+// DEBUG: AutoLoad Debug Image
+// async function importImageFromUrl(url) {
+//     const img = new Image();
+//     img.src = url;
+//     await img.decode();
 
-    const reader = new FileReader();
+//     const canvas = document.createElement("canvas");
+//     canvas.width = img.width;
+//     canvas.height = img.height;
 
-    reader.onload = () => {
-        const text = reader.result;
-        const matches = text.match(/[0-9a-fA-F]{6}/g) || [];
-        const seen = new Set();
-        const colors = [];
+//     canvas.getContext("2d").drawImage(img, 0, 0);
 
-        for (const hex of matches) {
-            const color = "#" + hex.toLowerCase();
-
-            if (!seen.has(color)) {
-                seen.add(color);
-                colors.push(color);
-
-                if (colors.length === 32) break;
-            }
-        }
-
-        if (colors.length === 0) {
-            alert("No valid colors found.");
-            return;
-        }
-
-        palette.set(colors);
-        presetSelect.value = "custom";
-    };
-
-    reader.readAsText(file);
-};
-
+//     return canvas;
+// }
+// const img = await importImageFromUrl('./debug.jpeg');
+// renderer.setImage(img);
+// crop.setImage({width: img.width, height: img.height});
+// displayView.resetTransform({width: img.width, height: img.height});
+// renderer.render();
+// document.getElementById("image-name").textContent = "debug";
+// document.getElementById("image-size").textContent = `${img.width}x${img.height}`;

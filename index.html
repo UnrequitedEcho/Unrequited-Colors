@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="darkreader-lock">
 <link rel="icon" href="data:,">
 <title>Unrequited Colors</title>
 <link rel="stylesheet" href="styles.css">
@@ -10,63 +11,67 @@
 <body>
 
     <!-- LEFT -->
-    <div id="controls">
+    <div id="control-pane">
 
         <h1>Unrequited Colors</h1>
-        <div class="hints">
-            <p class="hint">
-                <b>Instructions</b><br>
-                Select an image<br>
-                Pick a palette<br>
-                Tweak temperature slider<br><br>
-                More on the <a href=github.com/UnrequitedEcho/Unrequited-Colors>Github Repo</a>
-            </p>
-            <p class="hint">
-                <b>Palette controls</b><br>
-                Left click: edit color<br>
-                Middle click: disable color<br>
-                Right click: remove color<br>
-            </p>
-        </div>
+
         <!-- File buttons -->
-        <div class="row">
+        <div class="button-row">
             <button id="openImage">Open Image</button>
             <button id="saveImage">Save Image</button>
             <button id="resetView">Reset View</button>
         </div>
 
+        <div id="image-info">
+            <span id='image-name'></span>
+            <span id='image-size'></span>
+        </div>
+
         <hr>
 
-        <!-- Sliders -->
-        <h2>Controls</h2>
-        <div class="slider-group" data-control="temperature">
-            <div class="slider-header">
-                <label>Temperature</label>
+        <!-- Effects -->
+        <div>
+            <div class="sectionHeader">
+                <h2>Effects</h2>
                 <label class="switch">
-                    <input type="checkbox" class="toggle" checked>
+                    <input type="checkbox" id="global-effects-toggle" checked>
                     <span class="switch-slider"></span>
                 </label>
             </div>
-            <input type="range" class="slider" min="0" max="1" step="0.01" value="0.5">
+            <div id="effects"></div>
         </div>
 
         <hr>
 
         <!-- Palette -->
-        <h2>Palette</h2>
-        <button id="openPalette">Load Custom Palette from File</button>
-        <select id="presetSelect"></select>
-        <div id="palette"></div>
+        <div>
+            <div class="sectionHeader">
+                <h2>Palette</h2>
+            </div>
+            <div id="palette"></div>
+        </div>
+
+        <hr>
+
+        <!-- Crop -->
+        <div>
+            <div class="sectionHeader">
+                <h2>Crop</h2>
+                <label class="switch">
+                    <input type="checkbox" id="crop-toggle" checked>
+                    <span class="switch-slider"></span>
+                </label>
+            </div>
+            <div id="crop"></div>
+        </div>
 
     </div>
 
     <!-- RIGHT -->
     <div id="preview">
-        <canvas id="canvas"></canvas>
+        <canvas id="preview-canvas"></canvas>
     </div>
 
-    <input id="paletteFile" type="file" hidden>
-    <input id="imageInput" type="file" accept="image/*" style="display:none;">
     <script type="module" src="main.js"></script> 
 
 </body>
