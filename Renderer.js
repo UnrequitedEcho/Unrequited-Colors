@@ -109,6 +109,79 @@ export class DisplayView {
 		this.present();
 	}
 
+	export() {
+		if (!this.renderResult) return;
+		const gl = this.gl;
+
+		const halfSize = { width: this.renderResult.size.width / 2, height: this.renderResult.size.height / 2 };
+		const cropCenter = this.cropEnabled ? this.cropCenter : {x: halfSize.width, y: halfSize.height};
+		const cropSize = this.cropEnabled ? this.cropSize : this.renderResult.size;
+		const cropRot = this.cropEnabled ? this.cropRotation : 0;
+
+		const width = Math.round(cropSize.width);
+		const height = Math.round(cropSize.height);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+	    gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+        // Export Render Target
+        const exportFramebuffer = gl.createFramebuffer();
+        const exportTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, exportTexture);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+		gl.texImage2D(
+	        gl.TEXTURE_2D, 0, gl.RGBA, width, height,
+	        0, gl.RGBA, gl.UNSIGNED_BYTE, null
+	    );
+        gl.bindFramebuffer(gl.FRAMEBUFFER, exportFramebuffer);
+		gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, exportTexture, 0);
+
+        gl.viewport(0, 0, width, height);
+        gl.scissor(0, 0, width, height);
+
+        gl.useProgram(this.displayProgram);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.renderResult.texture);
+        gl.uniform1i(this.u_image, 0);
+        gl.uniform1f(this.u_scale, 1);
+        gl.uniform2f(this.u_offset, -(cropCenter.x - width / 2), -(cropCenter.y - height / 2));
+        gl.uniform2f(this.u_canvasSize, width, height);
+        gl.uniform2f(this.u_imageSize, this.renderResult.size.width, this.renderResult.size.height);
+        gl.uniform2f(this.u_cropCenter, cropCenter.x, cropCenter.y);
+        gl.uniform2f(this.u_cropSize, width, height);
+        gl.uniform1f(this.u_cropRotation, cropRot);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        const pixels = new Uint8Array(width * height * 4);
+        gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        const exportCanvas = document.createElement("canvas");
+        exportCanvas.width = width;
+        exportCanvas.height = height;
+        const exportCtx = exportCanvas.getContext("2d");
+        const imageData = exportCtx.createImageData(width, height);
+        imageData.data.set(pixels);
+        exportCtx.putImageData(imageData, 0, 0);
+
+        gl.deleteFramebuffer(exportFramebuffer);
+		gl.deleteTexture(exportTexture);
+
+		const flipped = document.createElement("canvas");
+		flipped.width = exportCanvas.width;
+		flipped.height = exportCanvas.height;
+
+		const ctx = flipped.getContext("2d");
+		ctx.translate(0, flipped.height);
+		ctx.scale(1, -1);
+		ctx.drawImage(exportCanvas, 0, 0);
+
+		return flipped;
+	}
+
     canvasToImage(canvasPos) {
     	return {
 		    x: (canvasPos.x - this.offset.x) / this.scale,
@@ -224,13 +297,6 @@ export class Renderer {
 		    }
 		};
 		this.pendingRenderRAF = requestAnimationFrame(renderFrame);
-	}
-
-	export() {
-		if (!this.hasImage) return;
-
-		this.beginRender(this.tileSize, this.tileSize);
-		return this.renderSome(0);
 	}
 
 	getMaxTextureSize() {

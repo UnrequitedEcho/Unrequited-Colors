@@ -19,7 +19,6 @@ void main() {
 
 
         vec3 delta = c - u_palette[i];
-        float palChroma = length(u_palette[i].yz);
         d[i] = delta.x * delta.x + dot(delta.yz, delta.yz);
         if (d[i] < d_min) d_min = d[i];
     }
@@ -31,7 +30,7 @@ void main() {
         if (i >= u_paletteSize) break;
 
         float a = (d[i] - d_min) / (u_sigma * u_sigma);
-        float w = pow(max(0., 1. - a), 2.);
+        float w = max(0., 1. - a);
         result += u_palette[i] * w;
         sum_w += w;
     }

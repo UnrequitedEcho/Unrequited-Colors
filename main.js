@@ -141,7 +141,7 @@ openImageBtn.onclick = () => {
 // -----------------------------------------------------------------
 const saveBtn = document.getElementById("saveImage");
 saveBtn.onclick = () => {
-    const saveCanvas = renderer.export();
+    const saveCanvas = displayView.export();
     if (!saveCanvas) return;
 
     const filename = `${imagename}-${palette.preset ?? "colorized"}.png`;
