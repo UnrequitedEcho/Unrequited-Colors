@@ -169,23 +169,23 @@ resetBtn.onclick = () => {
 const eventHandler = new EventHandler(canvas, displayView, crop);
 
 // DEBUG: AutoLoad Debug Image
-async function importImageFromUrl(url) {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
+// async function importImageFromUrl(url) {
+//     const img = new Image();
+//     img.src = url;
+//     await img.decode();
 
-    const canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
+//     const canvas = document.createElement("canvas");
+//     canvas.width = img.width;
+//     canvas.height = img.height;
 
-    canvas.getContext("2d").drawImage(img, 0, 0);
+//     canvas.getContext("2d").drawImage(img, 0, 0);
 
-    return canvas;
-}
-const img = await importImageFromUrl('./debug.jpeg');
-renderer.setImage(img);
-crop.setImage({width: img.width, height: img.height});
-displayView.resetTransform({width: img.width, height: img.height});
-renderer.render();
-document.getElementById("image-name").textContent = "debug";
-document.getElementById("image-size").textContent = `${img.width}x${img.height}`;
+//     return canvas;
+// }
+// const img = await importImageFromUrl('./debug.jpeg');
+// renderer.setImage(img);
+// crop.setImage({width: img.width, height: img.height});
+// displayView.resetTransform({width: img.width, height: img.height});
+// renderer.render();
+// document.getElementById("image-name").textContent = "debug";
+// document.getElementById("image-size").textContent = `${img.width}x${img.height}`;
