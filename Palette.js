@@ -16,6 +16,15 @@ export class Palette {
         this.emit();
     }
 
+    addColor(color) {
+        color = typeof color === "string"
+            ? { color: color, disabled: false }
+            : { color: color.color, disabled: !!color.disabled }
+        this.colors.push(color);
+        this.renderPalette();
+        this.emit();
+    }
+
     updateColor(index, color) {
         this.colors[index] = 
             typeof color === "string"
@@ -199,10 +208,24 @@ export class Palette {
 
             swatch.oncontextmenu = (e) => {
                 e.preventDefault();
-                this.removeColor(index);
+                if (this.colors.length > 2) this.removeColor(index);
             }
 
             container.appendChild(swatch);
         });
+
+        // append the "Add Color" swatch
+        const addColorSwatch = document.createElement("div");
+        addColorSwatch.className = "swatch";
+        addColorSwatch.classList.add("add");
+        addColorSwatch.textContent = "+";
+        addColorSwatch.onmousedown = (e) => {
+            e.preventDefault();
+            if (e.button === 0) {
+                colorInput.oninput = (e) => this.addColor(e.target.value);
+                colorInput.click();
+            }
+        }
+        container.appendChild(addColorSwatch);
     }
 }
