@@ -1,78 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="darkreader-lock">
-<link rel="icon" href="data:,">
-<title>Unrequited Colors</title>
-<link rel="stylesheet" href="styles.css">
-</head>
-
-<body>
-
-    <!-- LEFT -->
-    <div id="control-pane">
-
-        <h1>Unrequited Colors</h1>
-
-        <!-- File buttons -->
-        <div class="button-row">
-            <button id="openImage">Open Image</button>
-            <button id="saveImage">Save Image</button>
-            <button id="resetView">Reset View</button>
-        </div>
-
-        <div id="image-info">
-            <span id='image-name'></span>
-            <span id='image-size'></span>
-        </div>
-
-        <hr>
-
-        <!-- Effects -->
-        <div>
-            <div class="sectionHeader">
-                <h2>Effects</h2>
-                <label class="switch">
-                    <input type="checkbox" id="global-effects-toggle" checked>
-                    <span class="switch-slider"></span>
-                </label>
-            </div>
-            <div id="effects"></div>
-        </div>
-
-        <hr>
-
-        <!-- Palette -->
-        <div>
-            <div class="sectionHeader">
-                <h2>Palette</h2>
-            </div>
-            <div id="palette"></div>
-        </div>
-
-        <hr>
-
-        <!-- Crop -->
-        <div>
-            <div class="sectionHeader">
-                <h2>Crop</h2>
-                <label class="switch">
-                    <input type="checkbox" id="crop-toggle" checked>
-                    <span class="switch-slider"></span>
-                </label>
-            </div>
-            <div id="crop"></div>
-        </div>
-
-    </div>
-
-    <!-- RIGHT -->
-    <div id="preview">
-        <canvas id="preview-canvas"></canvas>
-    </div>
-
-    <script type="module" src="main.js"></script> 
-
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>workspace</title>
+    </head>
+    <body>
+        <div id="app"></div>
+        <script type="module" src="/src/main.ts"></script>
+    </body>
 </html>
