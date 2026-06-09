@@ -62,7 +62,7 @@
         }
 
         &:hover {
-            border-color: white;
+            border-color: var(--color-fg);
         }
     }
 </style>

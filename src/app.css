@@ -13,6 +13,15 @@
     --color-toggle-on: var(--color-fg-alt);
 }
 
+@media (prefers-color-scheme: light) {
+    :root {
+        --color-fg: #333333;
+        --color-fg-alt: #aaaaaa;
+        --color-border: #cacaca;
+        --color-bg: #dddddd;
+        --color-bg-alt: #f2f2f2;
+    }
+}
 
 body {
     margin: 0;
@@ -29,7 +38,7 @@ body {
 
 h1 {
     font-size: 24px;
-    margin: 12px 0px 6px 0px;
+    margin: 12px 0px;
 }
 
 button, input, select, .effect, #crop-controls {
