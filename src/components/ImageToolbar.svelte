@@ -23,7 +23,7 @@
 				...c,
 				centerX: bitmap.width / 2,
 				centerY: bitmap.height / 2,
-				scale: bitmap.width / (bitmap.width / bitmap.height),
+				height: bitmap.width / (bitmap.width / bitmap.height),
 				rotation: 0,
 				aspectRatio: bitmap.width / bitmap.height
 			}));
@@ -37,11 +37,26 @@
 	async function exportImage() {
 		if (!$sourceImage) return;
 
-		const blob = await renderer.export();
-		if (!blob) return;
+		const canvas = await renderer.export();
+		if (!canvas) return;
 
+		const filename = $sourceImage.filename;
+		const dot = filename.lastIndexOf('.');
+		let name = dot >= 0 ? filename.slice(0, dot) : filename;
+		let ext = dot >= 0 ? filename.slice(dot + 1) : '';
+		let mime;
+		switch (ext) {
+			case "png": mime = "image/png"; break;
+			case "jpg": mime = "image/jpeg"; break;
+			case "jpeg": mime = "image/jpeg"; break;
+			case "webp": mime = "image/webp"; break;
+			default: 
+				mime = "image/png"
+				name = name.concat(ext);
+		}
+
+		const blob = await canvas.convertToBlob({ type: mime });
 		const url = URL.createObjectURL(blob);
-
 		const a = document.createElement("a");
 		a.href = url;
 		a.download = $sourceImage.filename;

@@ -5,8 +5,8 @@
 		let width = 0;
 		let height = 0;
 		if ($cropState.enabled) {
-			width = $cropState.aspectRatio * $cropState.scale;
-			height = $cropState.scale;
+			width = $cropState.aspectRatio * $cropState.height;
+			height = $cropState.height;
 		}
 		else if ($sourceImage) {
 			width = $sourceImage.bitmap.width;

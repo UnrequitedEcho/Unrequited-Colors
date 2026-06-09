@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { previewState, cropState, sourceImage, resetPreviewRequest } from '../state';
+	import { previewState, cropState, sourceImage, resetPreviewRequest, type CropState, updateCrop } from '../state';
 	import { onMount, getContext, untrack } from 'svelte'; 
-	import { canvasToImage, clampToImageBounds } from '../utils'
+	import { canvasToImage } from '../utils'
     import type { Renderer } from '../renderer';
+    import { fade } from 'svelte/transition';
 
 	let canvas: HTMLCanvasElement;
 
@@ -37,25 +38,21 @@
 	}
 
 	function onWheel(e: WheelEvent) {
-		e.preventDefault();
 		if (!$sourceImage) return;
-		if ($previewState.mode === 'cropEdit' && e.shiftKey) {
-			const factor = e.deltaY < 0 ? 0.9 : 1.1;
-			const offset = e.deltaY < 0 ? -1 : 1;
-			let newScale = e.ctrlKey ? $cropState.scale : $cropState.scale * factor;
-			let newRotation = e.ctrlKey ? $cropState.rotation + offset : $cropState.rotation
+		e.preventDefault();
 
-			const [centerX, centerY, scale] =  clampToImageBounds(
-				$sourceImage.bitmap.width, $sourceImage.bitmap.height,
-				$cropState.centerX, $cropState.centerY,
-				newScale, newRotation, $cropState.aspectRatio
-			);
-			cropState.update((c) => ({
-				...c, centerX, centerY, scale, rotation: newRotation
-			}));
+		if ($previewState.mode === 'cropEdit' && e.shiftKey && e.ctrlKey) {
+			const offset = e.deltaY < 0 ? -1 : 1;
+			let rotation = e.ctrlKey ? $cropState.rotation + offset : $cropState.rotation
+			updateCrop({rotation});
 			return;
 		}
-
+		if ($previewState.mode === 'cropEdit' && e.shiftKey) {
+			const factor = e.deltaY < 0 ? 0.9 : 1.1;
+			let height = e.ctrlKey ? $cropState.height : $cropState.height * factor;
+			updateCrop({height});
+			return;
+		}
 
 		const zoom = e.deltaY < 0 ? 1.1 : 0.9;
 		const mx = e.offsetX;
@@ -83,14 +80,7 @@
         			$previewState.scale, $cropState.rotation
         		);
         		console.log(imagePosX, imagePosY);
-	        	const [centerX, centerY, scale] =  clampToImageBounds(
-					$sourceImage.bitmap.width, $sourceImage.bitmap.height,
-					imagePosX, imagePosY,
-					$cropState.scale, $cropState.rotation, $cropState.aspectRatio
-				);
-				cropState.update((c) => ({
-					...c, centerX, centerY, scale
-				}));
+        		updateCrop({centerX: imagePosX, centerY: imagePosY});
 				return;
         	}
 
@@ -130,14 +120,11 @@
     	let offsetX = (canvasRect.width - $sourceImage.bitmap.width * scale) / 2;
     	let offsetY = (canvasRect.height - $sourceImage.bitmap.height * scale) / 2;
 
-
     	if ($cropState.enabled) {
-		    const cropHeight = $cropState.scale;
-		    const cropWidth = $cropState.scale * $cropState.aspectRatio;
 
 		    scale = Math.min(
-		        canvasRect.width / cropWidth,
-		        canvasRect.height / cropHeight
+		        canvasRect.height / $cropState.height,
+		        canvasRect.width / $cropState.height * $cropState.aspectRatio
 		    );
 
 		    offsetX = canvasRect.width / 2 - $cropState.centerX * scale;
@@ -149,6 +136,22 @@
     	}));
     }
 
+    let showCropHelp = $state(false);
+    let cropHelpSeen = false;
+	$effect(() => {
+	    if (
+	        $previewState.mode === 'cropEdit' &&
+	        !cropHelpSeen
+	    ) {
+	        cropHelpSeen = true;
+	        showCropHelp = true;
+
+	        setTimeout(() => {
+	            showCropHelp = false;
+	        }, 10000);
+	    }
+	});
+
 </script>
 
 <canvas 
@@ -157,10 +160,30 @@
 	onwheel={onWheel}
 	onpointerdown={pointerDown}
 ></canvas>
+{#if showCropHelp}
+    <div class="crop-help" transition:fade={{ duration: 200 }}>
+        <div><kbd>Shift</kbd> + Drag → Move crop</div>
+        <div><kbd>Shift</kbd> + Wheel → Resize crop</div>
+        <div><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + Wheel → Rotate crop</div>
+    </div>
+{/if}
+
 
 <style>
 	canvas {
 		height: 100vh;
 		width: 100%;
 	}
+
+	.crop-help {
+    	position: absolute;
+	    top: 10px;
+	    right: 10px;
+	    padding: 10px;
+	    border-radius: 5px;
+	    background: rgba(0, 0, 0, 0.75);
+	    color: var(--color-fg);
+	    pointer-events: none;
+	}
+
 </style>

@@ -69,7 +69,7 @@ export function imageToCanvas(px: number, py: number, imgW: number, imgH: number
     return [ px, py ];
 }
 
-export function clampToImageBounds(imgW: number, imgH: number, cx: number, cy: number, s: number, r: number, ar: number) {
+function computeRotatedDirs(ar: number, r: number) {
 	r *= Math.PI / 180;
 	const cos = Math.cos(r);
 	const sin = Math.sin(r);
@@ -81,42 +81,47 @@ export function clampToImageBounds(imgW: number, imgH: number, cx: number, cy: n
 	    { x: -ar/2, y:  0.5 },
 	];
 
-	const rotatedDirs = dirs.map(d => ({
+	return dirs.map(d => ({
 	    x: d.x * cos - d.y * sin,
 	    y: d.x * sin + d.y * cos
 	}));
+} 
 
-	let maxS = Infinity;
+export function computeMaxCropHeight(imgW: number, imgH: number, r: number, ar: number) {
+	const rotatedDirs = computeRotatedDirs(ar, r);
 
-	for (const d of rotatedDirs) {
-	    if (d.x > 0) maxS = Math.min(maxS, imgW / (2 * d.x));
-	    if (d.x < 0) maxS = Math.min(maxS, imgW / (-2 * d.x));
-
-	    if (d.y > 0) maxS = Math.min(maxS, imgH / (2 * d.y));
-	    if (d.y < 0) maxS = Math.min(maxS, imgH / (-2 * d.y));
-	}
-
-	s = Math.min(s, maxS);
-
-	let minCx = -Infinity;
-	let maxCx = Infinity;
-	let minCy = -Infinity;
-	let maxCy = Infinity;
+	let maxH = Infinity;
 
 	for (const d of rotatedDirs) {
-	    minCx = Math.max(minCx, -s * d.x);
-	    maxCx = Math.min(maxCx, imgW - s * d.x);
+	    if (d.x > 0) maxH = Math.min(maxH, imgW / (2 * d.x));
+	    if (d.x < 0) maxH = Math.min(maxH, imgW / (-2 * d.x));
 
-	    minCy = Math.max(minCy, -s * d.y);
-	    maxCy = Math.min(maxCy, imgH - s * d.y);
+	    if (d.y > 0) maxH = Math.min(maxH, imgH / (2 * d.y));
+	    if (d.y < 0) maxH = Math.min(maxH, imgH / (-2 * d.y));
 	}
 
-	console.log(minCx, minCy, maxCx, maxCy);
+	return maxH
+}
 
-	cx = Math.max(minCx, Math.min(maxCx, cx));
-	cy = Math.max(minCy, Math.min(maxCy, cy));
+export function computeCropCenterLimits(imgW: number, imgH: number, h: number, r: number, ar: number) {
+	let minC = { x: -Infinity, y: -Infinity };
+	let maxC = { x: Infinity,  y:  Infinity };
 
-	return [ cx, cy, s ];
+	const rotatedDirs = computeRotatedDirs(ar, r);
+
+	for (const d of rotatedDirs) {
+		minC = {
+			x: Math.max(minC.x, -h * d.x),
+			y: Math.max(minC.y, -h * d.y)
+		}
+
+		maxC = {
+			x: Math.min(maxC.x, imgW - h * d.x),
+			y: Math.min(maxC.y, imgH - h * d.y)
+		}
+	}
+
+	return [minC, maxC];
 }
 
 export function getUniformLocation(gl: WebGL2RenderingContext, program: WebGLProgram, name: string): WebGLUniformLocation {

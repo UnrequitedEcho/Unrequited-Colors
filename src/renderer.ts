@@ -163,8 +163,8 @@ export class Renderer {
 
     	const cropState = get(State.cropState);
 		const rot = cropState.enabled ? cropState.rotation * Math.PI / 180 : 0;
-		const width = Math.floor(cropState.enabled ? cropState.aspectRatio * cropState.scale : this.imageWidth);
-		const height = Math.floor(cropState.enabled ? cropState.scale : this.imageHeight);
+		const width = Math.floor(cropState.enabled ? cropState.aspectRatio * cropState.height : this.imageWidth);
+		const height = Math.floor(cropState.enabled ? cropState.height : this.imageHeight);
 
 		// Wait for the possible render pending to finish
 		await (async () => {  
@@ -191,21 +191,14 @@ export class Renderer {
 
 		const pixels = new Uint8Array(width * height * 4);
 		gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-		const exportCanvas = document.createElement("canvas");
-        exportCanvas.width = width;
-        exportCanvas.height = height;
+		const exportCanvas = new OffscreenCanvas(width, height);
         const exportCtx = exportCanvas.getContext("2d");
         if (!exportCtx) throw new Error("Renderer: Could not create an export context");
         const imageData = exportCtx.createImageData(width, height);
         imageData.data.set(pixels);
         exportCtx.putImageData(imageData, 0, 0);
 
-        return await new Promise<Blob>((resolve, reject) => {
-		    exportCanvas.toBlob(
-		        blob => blob ? resolve(blob) : reject(),
-		        "image/png"
-		    );
-		});
+        return exportCanvas;
 	}
 
     _setImage() {
@@ -398,8 +391,8 @@ export class Renderer {
 
 		// Convert crop stuff to image coordinates
 		const cropHalfSize = { 
-			width: cropState.aspectRatio * cropState.scale / 2 * previewState.scale, 
-			height: cropState.scale / 2 * previewState.scale 
+			width: cropState.aspectRatio * cropState.height / 2 * previewState.scale, 
+			height: cropState.height / 2 * previewState.scale 
 		};
 		const [cropCenterX, cropCenterY] = imageToCanvas(
 			cropState.centerX, cropState.centerY,

@@ -2,21 +2,32 @@
 	import SectionHeader from './SectionHeader.svelte'
 	import RadioRow from './RadioRow.svelte'
 	import Slider from './Slider.svelte'
-	import { cropState, previewState, sourceImage } from '../state'
-	import { clampToImageBounds } from '../utils'
+	import { cropState, previewState, sourceImage, updateCrop } from '../state'
     import { untrack } from 'svelte';
+    import { computeMaxCropHeight } from '../utils';
 
 	const aspectRatioOptions = ['Original', '16:9', '4:3', '21:9', 'Custom'];
 
 	let cropEnabled = $state(false);
-	let rotation = $state(0);
 	let aspectRatioChoice = $state(aspectRatioOptions[0]);
 	let customARW = $state(16);
 	let customARH = $state(9);
+	let sliderCropHeight = $derived.by(() => {
+		if (!$sourceImage) return 100;
+		return $cropState.height / $sourceImage.bitmap.height * 100;
+	});
+	let sliderMaxCropHeight = $derived.by(() => {
+		if (!$sourceImage) return 100;
+		const maxHeight = computeMaxCropHeight(
+			$sourceImage.bitmap.width, $sourceImage.bitmap.height,
+			$cropState.rotation, $cropState.aspectRatio
+		);
+		return maxHeight / $sourceImage.bitmap.height * 100;
+	});
+	let sliderRotation = $derived(-1 * $cropState.rotation);
 
 	const aspectRatio = $derived.by(() => {
 		let newAspectRatio = 16 / 9;
-		$inspect(aspectRatioChoice);
 		switch	(aspectRatioChoice) {
 		case 'Original':
 			if ($sourceImage) {
@@ -33,30 +44,23 @@
 		return newAspectRatio;
 	});
 
-	let desiredScale = $state(100);
-
 	$effect(() => {
-	    if (!$sourceImage) return;
+		updateCrop({aspectRatio});
+	})
 
-	    const [centerX, centerY, scale] = clampToImageBounds(
-	        untrack(() => $sourceImage.bitmap.width),
-	        untrack(() => $sourceImage.bitmap.height),
-	        untrack(() => $cropState.centerX),
-	        untrack(() => $cropState.centerY),
-	        desiredScale * $sourceImage.bitmap.height / 100,
-	        -rotation,
-	        aspectRatio
-	    );
+	function onHeightChange(value: number) {
+		if (!$sourceImage) return;
+	    updateCrop({
+	        height: value * $sourceImage.bitmap.height / 100
+	    });
+	}
 
-	    cropState.update(c => ({
-	        ...c,
-	        rotation: -rotation,
-	        aspectRatio,
-	        centerX,
-	        centerY,
-	        scale
-	    }));
-	});
+	function onRotationChange(value: number) {
+		if (!$sourceImage) return;
+	    updateCrop({
+	        rotation: -1 * value
+	    });
+	}
 
 	$effect(() => {
 		cropState.update((c) => ({
@@ -86,15 +90,15 @@
 <section id="effects">
 	<SectionHeader title="Crop" bind:enabled={cropEnabled}/>
 	<div id="crop-controls" class="{$cropState.enabled ? '' : 'hidden'} {$sourceImage ? '' : 'disabled'}">
-		<button onclick={toggleEdit} class={$previewState.mode === 'cropEdit' ? 'active' : ''}>Edit Crop</button>
+		<button onclick={toggleEdit} class={$previewState.mode === 'cropEdit' ? 'active' : ''}>Adjust Crop</button>
 		<RadioRow options={aspectRatioOptions} bind:value={aspectRatioChoice}/>
 		<div id="custom-aspect-ratio-row" class="{aspectRatioChoice === 'Custom' ? '' : 'hidden'}">
 			<input type=number min=1 bind:value={customARW}/>
 			<span>:</span>
 			<input type=number min=1 bind:value={customARH}/>
 		</div>
-		<Slider bind:value={rotation} label="Rotation" min={-90} max={90} power={2}/>
-		<Slider bind:value={desiredScale} label="Size" min = {1} max={100} power={1}/>
+		<Slider bind:value={sliderRotation} label="Rotation" onInput={onRotationChange} min={-90} max={90} power={2}/>
+		<Slider bind:value={sliderCropHeight} bind:max={sliderMaxCropHeight} label="Size" onInput={onHeightChange} min = {1} power={1}/>
 	</div>
 </section>
 <svelte:window on:keydown={onKeyDown}/>

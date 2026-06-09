@@ -2,10 +2,11 @@
 	let { 
 		label, 
 		min = 0, 
-		max = 100, 
+		max = $bindable(100), 
 		step = "any", 
 		power = 1, 
 		value = $bindable(),
+		onInput = () => {},
 	} = $props();
 
     const defaultValue = value;
@@ -21,6 +22,7 @@
     })
 
     let sliderValue = $derived(valueToSlider(value));
+
 </script>
 
 <div class="slider-group">
@@ -35,11 +37,12 @@
 			min={valueToSlider(min)}
 			max={valueToSlider(max)} 
 			step={step}
-			oninput={(e) =>
+			oninput={(e) => {
 				value = sliderToValue(
 					Number(e.currentTarget.value)
 				)
-			}
+				onInput(value);
+			}}
 			onwheel={(e) => {
 				e.preventDefault();
 				const direction = e.deltaY < 0 ? 1 : -1;
@@ -49,9 +52,10 @@
 					: sliderVal + direction * valueToSlider(step);
 				sliderVal = Math.max(min, Math.min(max, sliderVal));
 				value = sliderToValue(sliderVal);
+				onInput(value);
 			}}
 		/>
-		<button onclick={() => value = defaultValue}>⟲</button>
+		<button onclick={() => {value = defaultValue; onInput(value);}}>⟲</button>
 	</div>
 </div>
 

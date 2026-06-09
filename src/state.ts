@@ -1,4 +1,5 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
+import { computeMaxCropHeight, computeCropCenterLimits, type PaletteColor } from './utils';
 
 export interface SourceImage {
 	filename: string;
@@ -74,7 +75,7 @@ export interface CropState {
 	enabled: boolean;
 	centerX: number;
 	centerY: number;
-	scale: number;
+	height: number;
 	rotation: number;
 	aspectRatio: number;
 }
@@ -82,10 +83,38 @@ export const cropState = writable<CropState>({
 	enabled: false,
 	centerX: 0,
 	centerY: 0,
-	scale: 1,
+	height: 1,
 	rotation: 0,
 	aspectRatio: 0
 });
+
+// Force crop box to stay within the image when updating the crop
+export function updateCrop(partialCropState : Partial<CropState>) {
+	const sourceImageValue = get(sourceImage);
+	const cropStateValue = get(cropState);
+
+	if (!sourceImageValue) return;
+	const newCropState = {
+		...cropStateValue,
+		...partialCropState
+	}
+
+	const maxHeight = computeMaxCropHeight(
+		sourceImageValue.bitmap.width, sourceImageValue.bitmap.height, 
+		newCropState.rotation, newCropState.aspectRatio
+	);
+	newCropState.height = Math.min(newCropState.height, maxHeight);
+
+	const [minC, maxC] = computeCropCenterLimits(
+		sourceImageValue.bitmap.width, sourceImageValue.bitmap.height, newCropState.height,
+		newCropState.rotation, newCropState.aspectRatio
+	);
+
+	newCropState.centerX = Math.max(minC.x, Math.min(maxC.x, newCropState.centerX));
+	newCropState.centerY = Math.max(minC.y, Math.min(maxC.y, newCropState.centerY));
+
+	cropState.set(newCropState);
+}
 
 export interface PreviewState {
 	mode: "preview" | "cropEdit"
