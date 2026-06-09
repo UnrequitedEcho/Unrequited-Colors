@@ -91,6 +91,7 @@
 
 	input {
 		width: 100%;
+		appearance: none;
 
 	    &::-moz-range-track {
 		    height: 4px;

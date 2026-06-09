@@ -46,7 +46,7 @@
             rel="noopener noreferrer"
             aria-label="GitHub"
         >
-            <img src = "/github.svg" alt="GitHub" width="30" height="30">
+            <img src={`${import.meta.env.BASE_URL}github.svg`} alt="GitHub" width="30" height="30">
         </a>
     </div>
     <ImageToolbar/>

@@ -7,17 +7,17 @@ import type { PalettePreset } from './utils'
 
 async function createEffects() {
     const effectsConfig = [ 
-        { Object: Effects.Effect,                     path: './shaders/rgbToOklab.frag', },  
-        { Object: Effects.BilateralFilterEffect,      path: './shaders/bilateral.frag',  },  
-        { Object: Effects.ColorAdjustEffect,          path: './shaders/colors.frag',     },
-        { Object: Effects.RadialBasisFunctionEffect,  path: './shaders/rbf.frag',        },  
-        { Object: Effects.LumaGrainEffect,            path: './shaders/dither.frag',     },
-        { Object: Effects.Effect,                     path: './shaders/oklabToRgb.frag', },  
+        { Object: Effects.Effect,                     path: 'rgbToOklab.frag', },  
+        { Object: Effects.BilateralFilterEffect,      path: 'bilateral.frag',  },  
+        { Object: Effects.ColorAdjustEffect,          path: 'colors.frag',     },
+        { Object: Effects.RadialBasisFunctionEffect,  path: 'rbf.frag',        },  
+        { Object: Effects.LumaGrainEffect,            path: 'dither.frag',     },
+        { Object: Effects.Effect,                     path: 'oklabToRgb.frag', },  
     ];
 
     const effects = [];
     for (const cfg of effectsConfig) {
-        const shaderSource = await fetch(cfg.path).then(r => r.text());
+        const shaderSource = await fetch(`${import.meta.env.BASE_URL}shaders/${cfg.path}`).then(r => r.text());
         effects.push(new cfg.Object(shaderSource));
     }
 
