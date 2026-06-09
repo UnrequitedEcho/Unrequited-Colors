@@ -147,10 +147,9 @@ To keep the comparison reasonably fair, I limited myself to roughly two minutes 
 
 ## Roadmap
 
-### V3
+### V4
 
-- **Rewrite of the UI code**  
-  The whole UI code is pretty bad, with state duplication everywhere. Ok for the prototype, but it's starting to slow down development.
+- **Nothing for now**  
 
 ### Maybe
 
