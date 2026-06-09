@@ -29,15 +29,15 @@ Below are a few examples, with the original image on the left and the UC result 
 
 After opening your picture: 
 
-1. Select you palette
+#### 1. Select your palette
 
 If your prefered palette is not available as a preset, you can either edit the current palette manually (see below) or load a text file. The parser will autodetect anything that looks like and hex color. For example, this is a valid palette file : `#282a36 282a36 44475aff ["f8f8f2"] Some random text #282a36 `. Duplicates are removed automatically, and only the first 32 colors are kept. If you already have a palette in a config file (CSS, JSON, theme files...), you can probably import it directly or with minimal modification.
 
-2. Adjust the the `Palettize` -> `Color Mix` slider
+#### 2. Adjust the the `Palettize` -> `Color Mix` slider
 
 Moving the slider all the way to the left tells the algorithm to select a single palette color for each pixel (pretty much quantization). Moving it to the right allows the algorithm to blend multiple palette colors together, producing smoother gradients. You most likely want something in between. *Tip: you can use the mouse wheel while hovering over any slider for finer control.*
 
-3. Adjust the Palette
+#### 3. Adjust the Palette
 
 If you notice a color that obviously doesn't belong in the preview, disable or remove it. If your palette is too small, the algorithm may struggle to produce nice gradients. In that case you may need to add colors to your palette. The palette controls are:
 
@@ -46,33 +46,33 @@ If you notice a color that obviously doesn't belong in the preview, disable or r
 - Remove a color: Right click on the the corresponding swatch
 - Temporarily disable a color: Middle or Shift + Right click on the the corresponding swatch
 
-4. (OPTIONAL) Activate `Smart Blur` and adjust the `Strength` slider
+#### 4. (OPTIONAL) Activate `Smart Blur` and adjust the `Strength` slider
 
 The paletization algorithm is very sensitive to noise. In many cases, a small amount of blur can help a lot. Unlike a traditional blur, Smart Blur preserves edges while smoothing noise. If you push it, you might also get some artistic/painterly effects which you might enjoy.
 
 | Original (Worst case scenario) | After Paletization | With Smart Blur |
 |--------------------------------|--------------------|-----------------|
-| ![](/readme/noise-orig.jpg) | ![](/readme/noise-paletized.jpg) | ![](/readme/noise-smartblur.jpg) |
+| ![](/readme/noise-orig.jpg) | ![](/readme/noise-palettized.jpg) | ![](/readme/noise-smartblur.jpg) |
 
-5. (OPTIONAL) Activate `Color Adjustements`. 
+#### 5. (OPTIONAL) Activate `Color Adjustements`. 
 
 If you cannot get the effect you are looking for, the `Color Adjustments` filters might help. **These adjustments are applied before palette conversion, not after it.** They are designed to influence how the algorithm interprets the image rather than to directly change the final colors. Because of this, the sliders may not always behave as you would expect. For example, the `Shadows` slider cannot make a pixel darker than the darkest color available in your palette. Similarly, rotating the Hue can help adapt an image whose original colors are very different from those of the selected palette.
 
 For best results, **leave the Palettize filter enabled** while adjusting these controls.
 
-6. (OPTIONAL) Activate the `Luma Grain` and adjust the slider.
+#### 6. (OPTIONAL) Activate the `Luma Grain` and adjust the slider.
 
 If you notice some banding, even after increasing the `Palettize` -> `Color Mix` slider, you may want to activate the `Luma Grain`. Start at the minimum, and slowly increase it until the banding disappears. It should be mostly imperceptible unless you are pixel peeping.
 
-7. Readjust the `Palettize` -> `Color Mix`. 
+#### 7. Readjust the `Palettize` -> `Color Mix`. 
 
 You probably only need small adjustments at this point, if any.
 
-8. (OPTIONAL) `Crop` the image as needed
+#### 8. (OPTIONAL) `Crop` the image as needed
 
 Activate the `Crop` tool and select your preffered aspect ratio. To set the size and the center of the crop box, click the **Adjust Crop** button, then click on the preview and scroll the moouse wheel. Click the button again (or press Escape) to exit crop mode. The crop tool guarantees that the crop region always remains fully inside the image boundaries. Make sure the final resolution is high enough for your use case. 
 
-9. Save the image
+#### 9. Save the image
 
 You can rename the image before saving it. Setting a different extension (`.jpg/.jpeg`, `.png` ou `.webp`) will convert the exported image.
 
