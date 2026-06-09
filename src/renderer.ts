@@ -75,8 +75,6 @@ export class Renderer {
 		gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
 		const quadBufferDataArray = [-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1];
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(quadBufferDataArray), gl.STATIC_DRAW);
-		this.vao = gl.createVertexArray();
-		gl.bindVertexArray(this.vao);
 		gl.enableVertexAttribArray(0);
 		gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
@@ -282,7 +280,7 @@ export class Renderer {
 		}
 
 		// Shortcut: if no effects, just copy the input texture
-		if (this.renderState.effects.length === 0) {
+		if (this.renderState.effects.length === 0 || !effectsState.enabled) {
 	    	this._copyTexture(this.sourceImageTexture, this.afterRenderTarget);
 	    	this.renderState = null;
 	    	this._present();
@@ -342,7 +340,6 @@ export class Renderer {
 			// Render Tile
 			gl.bindFramebuffer(this.gl.FRAMEBUFFER, rstate.writeTarget.framebuffer);
 			gl.scissor(rstate.tileX, rstate.tileY, tileWidth, tileHeight);
-			gl.bindVertexArray(this.vao);
 			gl.bindTexture(gl.TEXTURE_2D, rstate.texture);
 			gl.useProgram(effect.program);
 			gl.drawArrays(gl.TRIANGLES, 0, 6);

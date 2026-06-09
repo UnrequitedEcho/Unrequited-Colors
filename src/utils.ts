@@ -1,3 +1,8 @@
+export interface PalettePreset {
+    name: string;
+    colors: string[];
+}
+
 export interface PaletteColor {
 	color: string;
 	enabled: boolean;

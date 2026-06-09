@@ -1,13 +1,8 @@
 <script lang="ts">
 	import PaletteSwatch from './PaletteSwatch.svelte';
 	import { effectsState } from '../state';
-	import { pickTextFile, pickColor, type PaletteColor } from '../utils'
+	import { pickTextFile, pickColor, type PaletteColor, type PalettePreset } from '../utils'
 	import { getContext } from 'svelte';
-
-	interface PalettePreset {
-	    name: string;
-	    colors: string[];
-	}
 
 	async function loadCustomPalette() {
 		const text = await(pickTextFile());

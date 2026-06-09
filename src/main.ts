@@ -3,6 +3,7 @@ import './app.css'
 import App from './App.svelte'
 import * as Effects from './effects'
 import { Renderer } from './renderer'
+import type { PalettePreset } from './utils'
 
 async function createEffects() {
     const effectsConfig = [ 
@@ -34,6 +35,7 @@ async function loadPalettePresets() {
     return presets;
 }
 const palettePresets = await loadPalettePresets();
+palettePresets.sort((a: PalettePreset, b: PalettePreset) => a.name > b.name);
 
 const app = mount(App, {
     target: document.getElementById('app')!,

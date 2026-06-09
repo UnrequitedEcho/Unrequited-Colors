@@ -2,18 +2,19 @@
 
 *Because not all colors' love are reciprocated.*
 
-Unrequited Colors is a browser-based tool for constraining an image to a color palette. Unlike most similar programs, which rely on simple color quantization, UC uses a more sophisticated algorithm that blends palette colors together to produce smoother gradients while remaining faithful to the selected palette. It also includes a small set of pre- and post-processing filters designed specifically to complement the core algorithm. The primary use case is adapting wallpapers to match a desktop or system theme, though it can be used for any project that requires a limited color palette.
+Unrequited Colors is a browser-based tool for constraining an image to a color palette. Unlike most similar programs, which rely on simple color quantization, UC uses a more sophisticated algorithm that blends palette colors together to produce smoother gradients while remaining faithful to the selected palette. It also includes a small set of pre- and post-processing filters designed specifically to complement the core algorithm. The primary use case is adapting wallpapers to match a desktop or system theme.
 
-Unrequited Colors is not intended to be a full-featured image editor. If your image requires significant editing beyond palette conversion and basic cropping, it is usually best to make those adjustments in your preferred image editor before importing the image into UC.
+Unrequited Colors is not intended to be a full-featured image editor. If your image requires significant editing beyond palette conversion and basic cropping, it is probably best to make those adjustments in your preferred image editor before/after importing the image into UC.
 
 Below are a few examples, with the original image on the left and the UC result on the right.
 
-| Original | Unrequited Colors |
-| -------- | ------------------|
-| ![](/readme/anime-cityscape-orig.jpg) | ![](/readme/anime-cityscape-uc.jpg) |
-| ![](/readme/screenshot-mercy-orig.jpg) | ![](/readme/screenshot-mercy-uc.jpg) |
-| ![](/readme/photo-interior-orig.jpg) | ![](/readme/photo-interior-uc.jpg) |
-| ![](/readme/anime-sunset-balcony-orig.jpg) | ![](/readme/anime-sunset-balcony-uc.jpg) |
+| Theme | Original | Unrequited Colors |
+| ----- | -------- | ------------------|
+| Nord | ![](/readme/digitalart-ashe-lol-orig.jpg) | ![](/readme/digitalart-ashe-lol-nord.jpg) |
+| Gruvbox | ![](/readme/anime-cityscape-orig.jpg) | ![](/readme/anime-cityscape-gruvbox.jpg) |
+| Dracula | ![](/readme/screenshot-mercy-orig.jpg) | ![](/readme/screenshot-mercy-uc.jpg) |
+| Solarized | ![](/readme/anime-sunset-balcony-orig.jpg) | ![](/readme/anime-sunset-balcony-uc-solarized.jpg) |
+| Dracula | ![](/readme/photo-interior-orig.jpg) | ![](/readme/photo-interior-uc.jpg) |
 
 ## TL;DR
 
@@ -26,7 +27,7 @@ Below are a few examples, with the original image on the left and the UC result 
 
 ## Usage
 
-Here is a good starting workflow without getting into the nitty-gritty details of how the algorithm works. After opening your picture: 
+After opening your picture: 
 
 1. Select you palette
 
@@ -55,7 +56,7 @@ The paletization algorithm is very sensitive to noise. In many cases, a small am
 
 5. (OPTIONAL) Activate `Color Adjustements`. 
 
-If you cannot get the effect you are looking for, the `Color Adjustments` filters might help. **These adjustments are applied before palette conversion, not after it.** As a result, they are designed to influence how the algorithm interprets the image rather than to directly change the final colors. Because of this, the sliders may not always behave as you would expect. For example, the `Shadows` slider cannot make a pixel darker than the darkest color available in your palette. Similarly, rotating the Hue can help adapt an image whose original colors are very different from those of the selected palette.
+If you cannot get the effect you are looking for, the `Color Adjustments` filters might help. **These adjustments are applied before palette conversion, not after it.** They are designed to influence how the algorithm interprets the image rather than to directly change the final colors. Because of this, the sliders may not always behave as you would expect. For example, the `Shadows` slider cannot make a pixel darker than the darkest color available in your palette. Similarly, rotating the Hue can help adapt an image whose original colors are very different from those of the selected palette.
 
 For best results, **leave the Palettize filter enabled** while adjusting these controls.
 
@@ -69,9 +70,11 @@ You probably only need small adjustments at this point, if any.
 
 8. (OPTIONAL) `Crop` the image as needed
 
-Activate the `Crop` tool and select your preffered aspect ratio. To set the size and the center of the crop box, click the **Edit Crop** button, then click on the preview and scroll the moouse wheel. Click the button again (or press Escape) to exit crop mode. The crop tool guarantees that the crop region always remains fully inside the image boundaries. Make sure the final resolution is high enough for your use case. 
+Activate the `Crop` tool and select your preffered aspect ratio. To set the size and the center of the crop box, click the **Adjust Crop** button, then click on the preview and scroll the moouse wheel. Click the button again (or press Escape) to exit crop mode. The crop tool guarantees that the crop region always remains fully inside the image boundaries. Make sure the final resolution is high enough for your use case. 
 
 9. Save the image
+
+You can rename the image before saving it. Setting a different extension (`.jpg/.jpeg`, `.png` ou `.webp`) will convert the exported image.
 
 ## How it works
 
