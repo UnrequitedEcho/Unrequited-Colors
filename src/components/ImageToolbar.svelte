@@ -2,8 +2,32 @@
     import { getContext } from 'svelte';
 	import { sourceImage, cropState, resetPreviewRequest } from '../state';
     import type { Renderer } from '../renderer';
+    import { render } from 'svelte/server';
 
 	const renderer: Renderer = getContext('renderer');
+
+	async function resizeBitmap(bitmap: ImageBitmap) {
+		const maxSize = renderer.getMaxTextureSize();
+		if (bitmap.width <= maxSize && bitmap.height <= maxSize) return bitmap;
+
+		const scale = maxSize / Math.max(bitmap.width, bitmap.height);
+		const newW = Math.round(bitmap.width * scale);
+		const newH = Math.round(bitmap.height * scale);
+		alert(
+		  `This image exceeds your device's maximum supported texture size (${maxSize}px). ` +
+		  `It has been automatically resized to ${newW} × ${newH}.`
+		);
+		const scaledBitmap =  await createImageBitmap(
+		 	bitmap,
+		  	{
+		    	resizeWidth: newW,
+		    	resizeHeight: newH,
+		    	resizeQuality: "high"
+		  	}
+		);
+		bitmap.close();
+		return scaledBitmap;
+	}
 
 	async function openImage() {
 		const input = document.createElement('input');
@@ -14,7 +38,9 @@
 			const file = (e.target as HTMLInputElement).files?.[0];
 			if (!file) return;
 
-			const bitmap = await createImageBitmap(file);
+			let bitmap = await createImageBitmap(file);
+			bitmap = await resizeBitmap(bitmap);
+
 			sourceImage.set({
 				filename: file.name,
 				bitmap: bitmap

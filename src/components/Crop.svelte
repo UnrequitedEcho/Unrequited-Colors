@@ -98,7 +98,7 @@
 			<input type=number min=1 bind:value={customARH}/>
 		</div>
 		<Slider bind:value={sliderRotation} label="Rotation" onInput={onRotationChange} min={-90} max={90} power={2}/>
-		<Slider bind:value={sliderCropHeight} bind:max={sliderMaxCropHeight} label="Size" onInput={onHeightChange} min = {1} power={1}/>
+		<Slider bind:value={sliderCropHeight} bind:max={sliderMaxCropHeight} label="Height %" onInput={onHeightChange} min = {1} power={1}/>
 	</div>
 </section>
 <svelte:window on:keydown={onKeyDown}/>
