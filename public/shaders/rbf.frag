@@ -23,7 +23,7 @@ void main() {
         if (d[i] < d_min) d_min = d[i];
     }
 
-    // weighted mix of the palette color in weight order
+    // weighted mix of the palette color
     vec3 result = vec3(0.);
     float sum_w = 0.;
     for (int i = 0; i < 32; i++) {
